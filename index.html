@@ -83,6 +83,25 @@ nav{height:var(--tab-h);background:var(--bg2);border-top:1px solid var(--border)
 .done-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--accent3),#00c9a7);border:none;border-radius:14px;color:#000;font-size:16px;font-weight:800;cursor:pointer;transition:transform .15s;}
 .done-btn:active{transform:scale(.97);}
 
+/* WEIGHT SECTION */
+.weight-row{background:var(--bg3);border-radius:14px;padding:14px 16px;margin-bottom:14px;}
+.weight-row-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.weight-row-label{font-size:12px;font-weight:700;color:var(--text2);letter-spacing:.4px;}
+.weight-hist{font-size:11px;color:var(--text3);}
+.weight-ctrl{display:flex;align-items:center;justify-content:center;gap:14px;}
+.wt-btn{width:40px;height:40px;border-radius:50%;background:var(--bg2);border:1px solid var(--border);color:var(--text);font-size:22px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
+.wt-btn:active{background:var(--accent);border-color:var(--accent);transform:scale(.92);}
+.wt-val-wrap{min-width:90px;text-align:center;cursor:pointer;}
+.wt-num{font-size:32px;font-weight:800;line-height:1;}
+.wt-unit{font-size:13px;color:var(--text2);margin-left:2px;}
+.wt-presets{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:10px;}
+.wt-preset{padding:4px 12px;border-radius:20px;background:var(--bg2);border:1px solid var(--border);font-size:11px;font-weight:700;cursor:pointer;color:var(--text2);transition:all .15s;}
+.wt-preset:active,.wt-preset.wt-active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.bw-tag{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--accent3);font-weight:600;padding:6px 0;}
+
+/* Weight badge in exercise card */
+.ex-weight-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;background:rgba(108,99,255,.18);color:var(--accent);margin-left:4px;vertical-align:middle;}
+
 /* TIMER */
 .timer-bar{position:fixed;bottom:calc(var(--tab-h)+12px);left:16px;right:16px;background:var(--bg3);border-radius:16px;border:1px solid var(--accent);padding:12px 16px;display:flex;align-items:center;gap:12px;z-index:90;transform:translateY(120%);transition:transform .3s;}
 .timer-bar.show{transform:translateY(0);}
@@ -359,6 +378,13 @@ nav{height:var(--tab-h);background:var(--bg2);border-top:1px solid var(--border)
     <div class="modal-anim" id="modal-anim"></div>
     <div class="modal-title" id="modal-title"></div>
     <div class="modal-meta" id="modal-meta"></div>
+    <div class="weight-row" id="weight-row">
+      <div class="weight-row-header">
+        <div class="weight-row-label" id="t-weight-label">🏋️ 重量</div>
+        <div class="weight-hist" id="weight-hist"></div>
+      </div>
+      <div id="weight-body"></div>
+    </div>
     <div class="modal-sets" id="modal-sets"></div>
     <div class="modal-tips" id="modal-tips"></div>
     <button class="done-btn" id="modal-done-btn" onclick="completeExercise()">完成此动作 ✓</button>
@@ -671,6 +697,7 @@ const TRANSLATIONS={
     level_titles:['新手','稳定练习者','进阶训练者','精英运动员','传说战士'],
     edit_name_prompt:'请输入你的昵称:',reset_confirm:'确认重置所有训练数据？',
     tip_prefix:'💡 ',
+    weight_label:'🏋️ 重量',weight_bw:'徒手 (可加额外重量)',weight_last:'上次',weight_none:'未记录',
   },
   en:{
     tab_today:'Today',tab_plan:'Plan',tab_progress:'Log',tab_profile:'Me',
@@ -702,6 +729,7 @@ const TRANSLATIONS={
     level_titles:['Beginner','Regular','Intermediate','Elite Athlete','Legend'],
     edit_name_prompt:'Enter your nickname:',reset_confirm:'Reset all training data?',
     tip_prefix:'💡 ',
+    weight_label:'🏋️ Weight',weight_bw:'Bodyweight (+ extra)',weight_last:'Last',weight_none:'Not set',
   }
 };
 let currentLang='zh';
@@ -720,6 +748,7 @@ function applyI18n(){
     't-section-exercises':'section_exercises','t-start-btn':'start_btn','t-streak-suffix':'streak_suffix',
     't-ring-complete':'ring_complete','t-rest-toggle-label':'rest_toggle_label','t-editor-save':'editor_save',
     't-timer-title':'timer_title','t-timer-skip':'timer_skip',
+    't-weight-label':'weight_label',
   };
   Object.entries(ids).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.textContent=t(key);});
   document.getElementById('la-zh').className=currentLang==='zh'?'la':'';
@@ -761,6 +790,7 @@ let state = {
   name:'健身达人',
   theme:0,
   lang:'zh',
+  weights:{},  // { exId: { kg: number, history: [{date,kg}] } }
 };
 const THEMES=[
   {accent:'#6c63ff',accent2:'#ff6584',accent3:'#43e97b'},
@@ -878,11 +908,13 @@ function renderExList(workout){
     const card=document.createElement('div');
     card.className='ex-card'+(isDone?' done-ex':'');
     card.onclick=()=>openExercise(ex);
+    const savedW=state.weights?.[ex.id]?.kg;
+    const wBadge=savedW>0?`<span class="ex-weight-badge">⚖️ ${savedW}kg</span>`:'';
     card.innerHTML=`
       <div class="ex-anim anim-${ex.anim}">${ex.emoji}</div>
       <div class="ex-info">
         <div class="ex-name">${exName(ex)}</div>
-        <div class="ex-detail">${ex.sets}${currentLang==='en'?' sets × ':' 组 × '}${ex.reps}</div>
+        <div class="ex-detail">${ex.sets}${currentLang==='en'?' sets × ':' 组 × '}${ex.reps}${wBadge}</div>
         <span class="ex-equip-tag" style="background:${eq.bg};color:${eq.color}">${equipLabel(ex.equip)}</span>
       </div>
       <div class="ex-check">${isDone?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>`;
@@ -894,6 +926,91 @@ function renderExList(workout){
 //  EXERCISE MODAL
 // ══════════════════════════════════════
 let currentExercise=null,setsDone=[],timerInterval=null,timerSecs=60;
+let currentWeight=0;
+
+// Weight presets per equipment type
+const WEIGHT_PRESETS={
+  barbell:[20,40,60,80,100,120],
+  dumbbell:[5,8,10,12,15,20,25,30],
+  machine:[20,30,40,50,60,70,80],
+  cable:[10,15,20,25,30,40,50],
+  equipment:[5,10,15,20,25,30],
+  bodyweight:[0,5,10,20],
+};
+
+function renderWeightSection(ex){
+  const isBW=ex.equip==='bodyweight';
+  const wr=state.weights||{};
+  const saved=wr[ex.id];
+  currentWeight=saved?.kg??0;
+
+  // History hint
+  const hist=document.getElementById('weight-hist');
+  if(saved?.kg>0){
+    const lastDate=saved.lastDate?new Date(saved.lastDate).toLocaleDateString(currentLang==='en'?'en-US':'zh-CN',{month:'numeric',day:'numeric'}):'';
+    hist.textContent=`${t('weight_last')}: ${saved.kg}kg${lastDate?' ('+lastDate+')':''}`;
+  } else {
+    hist.textContent=t('weight_none');
+  }
+
+  const body=document.getElementById('weight-body');
+  if(isBW){
+    body.innerHTML=`
+      <div class="bw-tag">🤸 ${t('weight_bw')}</div>
+      <div class="wt-presets">${WEIGHT_PRESETS.bodyweight.map(v=>
+        `<div class="wt-preset${v===currentWeight?' wt-active':''}" onclick="setWeightPreset(${v})">${v===0?'0 kg':'+'+v+' kg'}</div>`
+      ).join('')}</div>`;
+  } else {
+    const presets=(WEIGHT_PRESETS[ex.equip]||WEIGHT_PRESETS.machine);
+    body.innerHTML=`
+      <div class="weight-ctrl">
+        <button class="wt-btn" onclick="adjustWeight(-2.5)">−</button>
+        <div class="wt-val-wrap" onclick="promptWeight()">
+          <span class="wt-num" id="wt-display">${currentWeight||0}</span><span class="wt-unit">kg</span>
+        </div>
+        <button class="wt-btn" onclick="adjustWeight(2.5)">+</button>
+      </div>
+      <div class="wt-presets">${presets.map(v=>
+        `<div class="wt-preset${v===currentWeight?' wt-active':''}" onclick="setWeightPreset(${v})">${v}kg</div>`
+      ).join('')}</div>`;
+  }
+}
+
+function adjustWeight(delta){
+  const isBW=currentExercise?.equip==='bodyweight';
+  currentWeight=Math.max(0,Math.round((currentWeight+delta)*10)/10);
+  if(!isBW){
+    const el=document.getElementById('wt-display');
+    if(el)el.textContent=currentWeight||0;
+    updateWeightPresetHighlight();
+  }
+}
+
+function setWeightPreset(v){
+  currentWeight=v;
+  const el=document.getElementById('wt-display');
+  if(el)el.textContent=v;
+  updateWeightPresetHighlight();
+  // re-render bodyweight section to update active state
+  if(currentExercise?.equip==='bodyweight')renderWeightSection(currentExercise);
+}
+
+function updateWeightPresetHighlight(){
+  document.querySelectorAll('.wt-preset').forEach(btn=>{
+    const val=parseFloat(btn.textContent);
+    btn.classList.toggle('wt-active',val===currentWeight);
+  });
+}
+
+function promptWeight(){
+  const v=prompt(currentLang==='en'?`Enter weight (kg) for ${exName(currentExercise)}:`:`输入 ${exName(currentExercise)} 的重量 (kg):`,currentWeight||0);
+  if(v!==null&&!isNaN(parseFloat(v))){
+    currentWeight=Math.max(0,Math.round(parseFloat(v)*10)/10);
+    const el=document.getElementById('wt-display');
+    if(el)el.textContent=currentWeight;
+    updateWeightPresetHighlight();
+  }
+}
 function openExercise(ex){
   currentExercise=ex;
   setsDone=new Array(ex.sets).fill(false);
@@ -904,6 +1021,7 @@ function openExercise(ex){
   document.getElementById('modal-anim').innerHTML=`<div style="text-align:center"><div class="anim-${ex.anim}" style="display:inline-block;font-size:80px;line-height:1">${ex.emoji}</div><div style="margin-top:12px;font-size:13px;color:var(--text2)">${exName(ex)}</div></div>`;
   const setsEl=document.getElementById('modal-sets');setsEl.innerHTML='';
   for(let i=0;i<ex.sets;i++){const r=document.createElement('div');r.className='set-row';r.innerHTML=`<div class="set-num">${i+1}</div><div class="set-info">${t('set_label')}${i+1}${t('set_suffix')} · ${ex.reps}</div><div class="set-check" id="set-${i}" onclick="toggleSet(${i})"></div>`;setsEl.appendChild(r);}
+  renderWeightSection(ex);
   const alreadyDone=!!(state.completedExercises[todayKey()]||{})[ex.id];
   if(alreadyDone){setsDone.fill(true);updateSetDisplay();document.getElementById('modal-done-btn').textContent=t('modal_done_already');document.getElementById('modal-done-btn').style.background='var(--bg3)';}
   else{document.getElementById('modal-done-btn').textContent=t('modal_done');document.getElementById('modal-done-btn').style.background='';}
@@ -918,6 +1036,14 @@ function completeExercise(){
   if(!state.completedExercises[key])state.completedExercises[key]={};
   state.completedExercises[key][currentExercise.id]=true;
   state.totalExercises=(state.totalExercises||0)+1;
+  // Save weight
+  if(!state.weights)state.weights={};
+  if(currentWeight>=0){
+    const prev=state.weights[currentExercise.id]||{};
+    const hist=(prev.history||[]).filter(h=>h.date!==key);
+    if(currentWeight>0)hist.push({date:key,kg:currentWeight});
+    state.weights[currentExercise.id]={kg:currentWeight,lastDate:key,history:hist.slice(-30)};
+  }
   const w=getWorkoutForDay(jsDayToPlanDay(new Date().getDay()));
   if(w.exercises.every(e=>(state.completedExercises[key]||{})[e.id])&&!state.completedWorkouts.includes(key)){
     state.completedWorkouts.push(key);saveState();
@@ -1103,7 +1229,8 @@ function toggleEditorEx(id){
 
 function renderEditorBottom(){
   const count=editorSelected.length;
-  document.getElementById('editor-selected-count').innerHTML=`${t('editor_selected')} <strong>${count}</strong> ${t('editor_selected_unit')}${count>0?` · ${t('editor_est')} ${Math.round(count*5+8)} ${t('editor_est_suffix')}`:''}`;
+  const estStr=count>0?' · '+t('editor_est')+' '+Math.round(count*5+8)+' '+t('editor_est_suffix'):'';
+  document.getElementById('editor-selected-count').innerHTML=t('editor_selected')+' <strong>'+count+'</strong> '+t('editor_selected_unit')+estStr;
   const pills=document.getElementById('editor-selected-pills');
   pills.innerHTML=editorSelected.slice(0,8).map(id=>{
     const ex=getEx(id);
@@ -1111,9 +1238,6 @@ function renderEditorBottom(){
   }).join('')+(editorSelected.length>8?`<div class="editor-pill">+${editorSelected.length-8}</div>`:'');
 }
 
-// ══════════════════════════════════════
-//  PROGRESS
-// ══════════════════════════════════════
 function calcStreak(){
   let streak=0;const today=new Date();
   for(let i=0;i<365;i++){const d=new Date(today);d.setDate(today.getDate()-i);if(state.completedWorkouts.includes(dateKey(d)))streak++;else if(i>0)break;}
@@ -1128,22 +1252,19 @@ function renderProgress(){
   document.getElementById('stat-streak').textContent=streak;
   document.getElementById('stat-week').textContent=wk;
   document.getElementById('stat-exercises').textContent=state.totalExercises||0;
-  document.getElementById('progress-sub').textContent=currentLang==='en'?`${t('history_total')} ${total} ${t('history_total_suffix')}`:`共完成 ${total} 次训练`;
+  document.getElementById('progress-sub').textContent=currentLang==='en'?t('history_total')+' '+total+' '+t('history_total_suffix'):'共完成 '+total+' 次训练';
   document.getElementById('heatmap-labels').innerHTML=t('day_chips').map(d=>`<div class="heat-label">${d}</div>`).join('');
   const hm=document.getElementById('heatmap');hm.innerHTML='';
   const monday=new Date(today);monday.setDate(today.getDate()-(jsDay===0?6:jsDay-1)-21);
   for(let i=0;i<28;i++){const d=new Date(monday);d.setDate(monday.getDate()+i);const dk=dateKey(d);const cell=document.createElement('div');cell.className='heat-cell'+(state.completedWorkouts.includes(dk)?' l3':'')+(dk===todayKey()?' today-cell':'');hm.appendChild(cell);}
   const histList=document.getElementById('history-list');
-  if(!state.completedWorkouts.length){histList.innerHTML=`<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">${currentLang==='en'?'No workouts yet<br>Complete today\'s workout to start!':'还没有训练记录<br>完成今天的训练开始积累吧！'}</div></div>`;return;}
+  if(!state.completedWorkouts.length){histList.innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">'+(currentLang==='en'?'No workouts yet<br>Complete today\'s workout to start!':'还没有训练记录<br>完成今天的训练开始积累吧！')+'</div></div>';return;}
   histList.innerHTML=[...state.completedWorkouts].sort((a,b)=>b.localeCompare(a)).slice(0,20).map(dk=>{
     const d=new Date(dk);const w=getWorkoutForDay(jsDayToPlanDay(d.getDay()));
-    return`<div class="history-item"><div class="history-dot"></div><div class="history-info"><div class="history-title">${w.icon} ${w.name}</div><div class="history-date">${d.toLocaleDateString(currentLang==='en'?'en-US':'zh-CN',{month:'long',day:'numeric'})} · ${t('history_days')[d.getDay()]}</div></div><div class="history-badge">${t('history_badge')}</div></div>`;
+    return '<div class="history-item"><div class="history-dot"></div><div class="history-info"><div class="history-title">'+w.icon+' '+w.name+'</div><div class="history-date">'+d.toLocaleDateString(currentLang==='en'?'en-US':'zh-CN',{month:'long',day:'numeric'})+' · '+t('history_days')[d.getDay()]+'</div></div><div class="history-badge">'+t('history_badge')+'</div></div>';
   }).join('');
 }
 
-// ══════════════════════════════════════
-//  PROFILE
-// ══════════════════════════════════════
 function renderProfile(){
   const total=state.completedWorkouts.length,level=Math.floor(total/5)+1,xp=(total%5)*20;
   document.getElementById('profile-name').textContent=state.name||'健身达人';
@@ -1154,12 +1275,9 @@ function renderProfile(){
   document.getElementById('t-xp-label').textContent=t('xp_label');
 }
 function editName(){const n=prompt(t('edit_name_prompt'),state.name||'健身达人');if(n){state.name=n;saveState();renderProfile();}}
-function toggleTheme(){state.theme=((state.theme||0)+1)%THEMES.length;const t=THEMES[state.theme];document.documentElement.style.setProperty('--accent',t.accent);document.documentElement.style.setProperty('--accent2',t.accent2);document.documentElement.style.setProperty('--accent3',t.accent3);saveState();}
+function toggleTheme(){state.theme=((state.theme||0)+1)%THEMES.length;const th=THEMES[state.theme];document.documentElement.style.setProperty('--accent',th.accent);document.documentElement.style.setProperty('--accent2',th.accent2);document.documentElement.style.setProperty('--accent3',th.accent3);saveState();}
 function resetProgress(){if(confirm(t('reset_confirm'))){state.completedExercises={};state.completedWorkouts=[];state.totalExercises=0;saveState();renderToday();renderProfile();}}
 
-// ══════════════════════════════════════
-//  CONFETTI
-// ══════════════════════════════════════
 function showConfetti(){
   const wrap=document.getElementById('confetti-wrap');wrap.innerHTML='';
   const colors=['#6c63ff','#ff6584','#43e97b','#f7971e','#4facfe','#f093fb'];
@@ -1167,9 +1285,6 @@ function showConfetti(){
   setTimeout(()=>wrap.innerHTML='',3000);
 }
 
-// ══════════════════════════════════════
-//  INIT
-// ══════════════════════════════════════
 loadState();
 applyI18n();
 renderToday();

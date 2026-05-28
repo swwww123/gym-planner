@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>每日健身计划</title>
+<style>
+:root{
+  --bg:#0f0f13;--bg2:#1a1a24;--bg3:#242433;--card:#1e1e2e;
+  --accent:#6c63ff;--accent2:#ff6584;--accent3:#43e97b;
+  --text:#f0f0ff;--text2:#9999bb;--text3:#666688;--border:#2a2a40;
+  --tab-h:64px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,'PingFang SC','Helvetica Neue',sans-serif;overflow:hidden;}
+#app{height:100%;display:flex;flex-direction:column;}
+.page{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:calc(var(--tab-h)+8px);display:none;}
+.page.active{display:block;}
+.page-header{padding:48px 20px 16px;position:sticky;top:0;background:var(--bg);z-index:10;border-bottom:1px solid var(--border);}
+.page-title{font-size:26px;font-weight:700;}
+.page-sub{font-size:13px;color:var(--text2);margin-top:4px;}
+
+/* NAV */
+nav{height:var(--tab-h);background:var(--bg2);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;flex-shrink:0;}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;cursor:pointer;color:var(--text3);transition:color .2s;}
+.tab.active{color:var(--accent);}
+.tab svg{width:22px;height:22px;}
+.tab span{font-size:10px;font-weight:600;letter-spacing:.3px;}
+
+/* TODAY */
+.today-hero{margin:16px;padding:20px;background:linear-gradient(135deg,#1a1a3e,#2a1a4e);border-radius:20px;border:1px solid #3a2a6e;position:relative;overflow:hidden;}
+.today-hero::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(108,99,255,.3),transparent 70%);border-radius:50%;}
+.today-hero::after{content:'';position:absolute;bottom:-20px;left:-20px;width:80px;height:80px;background:radial-gradient(circle,rgba(67,233,123,.2),transparent 70%);border-radius:50%;}
+.hero-day{font-size:12px;color:var(--accent);font-weight:700;letter-spacing:1px;}
+.hero-title{font-size:22px;font-weight:800;margin:4px 0 8px;}
+.hero-meta{display:flex;gap:16px;flex-wrap:wrap;}
+.hero-stat{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);}
+.hero-stat svg{width:14px;height:14px;color:var(--accent3);}
+.start-btn{margin-top:16px;width:100%;padding:14px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:transform .15s;}
+.start-btn:active{transform:scale(.97);}
+.day-strip{display:flex;gap:8px;padding:0 16px 16px;overflow-x:auto;scrollbar-width:none;}
+.day-strip::-webkit-scrollbar{display:none;}
+.day-chip{flex-shrink:0;width:50px;padding:8px 6px;border-radius:12px;background:var(--bg2);border:1px solid var(--border);text-align:center;cursor:pointer;transition:all .2s;}
+.day-chip.active{background:var(--accent);border-color:var(--accent);}
+.day-chip.done{border-color:var(--accent3);background:rgba(67,233,123,.1);}
+.day-chip .chip-day{font-size:10px;color:var(--text2);}
+.day-chip.active .chip-day,.day-chip .chip-num{color:var(--text);}
+.day-chip .chip-num{font-size:18px;font-weight:700;}
+.day-chip .chip-dot{width:5px;height:5px;border-radius:50%;margin:3px auto 0;}
+.day-chip.done .chip-dot{background:var(--accent3);}
+.day-chip.active .chip-dot{background:rgba(255,255,255,.6);}
+
+/* EX LIST */
+.ex-list{padding:0 16px;display:flex;flex-direction:column;gap:10px;margin-bottom:8px;}
+.ex-card{background:var(--bg2);border-radius:14px;border:1px solid var(--border);display:flex;align-items:center;padding:12px 14px;gap:12px;cursor:pointer;transition:transform .15s;position:relative;overflow:hidden;}
+.ex-card:active{transform:scale(.98);}
+.ex-card.done-ex{border-color:var(--accent3);}
+.ex-card.done-ex::before{content:'';position:absolute;inset:0;background:rgba(67,233,123,.05);}
+.ex-anim{width:52px;height:52px;border-radius:12px;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.ex-info{flex:1;min-width:0;}
+.ex-name{font-size:15px;font-weight:600;}
+.ex-detail{font-size:12px;color:var(--text2);margin-top:2px;}
+.ex-equip-tag{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;margin-top:4px;display:inline-block;}
+.ex-check{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.ex-card.done-ex .ex-check{background:var(--accent3);border-color:var(--accent3);}
+
+/* WORKOUT MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;opacity:0;pointer-events:none;transition:opacity .3s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--bg2);border-radius:24px 24px 0 0;width:100%;max-width:500px;padding:20px 20px 40px;max-height:92vh;overflow-y:auto;transform:translateY(40px);transition:transform .3s;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-handle{width:36px;height:4px;background:var(--bg3);border-radius:2px;margin:0 auto 16px;}
+.modal-anim{width:100%;height:160px;border-radius:16px;background:var(--bg3);margin-bottom:18px;display:flex;align-items:center;justify-content:center;}
+.modal-title{font-size:22px;font-weight:800;}
+.modal-meta{color:var(--text2);font-size:14px;margin:6px 0 16px;}
+.modal-sets{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+.set-row{display:flex;align-items:center;gap:12px;background:var(--bg3);border-radius:10px;padding:10px 14px;}
+.set-num{width:24px;height:24px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.set-info{flex:1;font-size:14px;}
+.set-check{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+.set-check.checked{background:var(--accent3);border-color:var(--accent3);}
+.modal-tips{background:rgba(108,99,255,.1);border-radius:12px;padding:12px;border-left:3px solid var(--accent);font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:16px;}
+.done-btn{width:100%;padding:16px;background:linear-gradient(135deg,var(--accent3),#00c9a7);border:none;border-radius:14px;color:#000;font-size:16px;font-weight:800;cursor:pointer;transition:transform .15s;}
+.done-btn:active{transform:scale(.97);}
+
+/* TIMER */
+.timer-bar{position:fixed;bottom:calc(var(--tab-h)+12px);left:16px;right:16px;background:var(--bg3);border-radius:16px;border:1px solid var(--accent);padding:12px 16px;display:flex;align-items:center;gap:12px;z-index:90;transform:translateY(120%);transition:transform .3s;}
+.timer-bar.show{transform:translateY(0);}
+.timer-circle{width:44px;height:44px;flex-shrink:0;position:relative;}
+.timer-circle svg{transform:rotate(-90deg);}
+.t-bg{fill:none;stroke:var(--border);stroke-width:3;}
+.t-fill{fill:none;stroke:var(--accent);stroke-width:3;stroke-linecap:round;stroke-dasharray:113;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear;}
+.timer-label{font-size:14px;font-weight:600;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+.timer-info{flex:1;}
+.timer-title{font-size:13px;font-weight:600;}
+.timer-sub{font-size:11px;color:var(--text2);}
+.timer-skip{padding:6px 14px;border-radius:20px;background:var(--accent);border:none;color:#fff;font-size:12px;font-weight:700;cursor:pointer;}
+
+/* ══════ PLAN PAGE ══════ */
+.schedule-grid{display:flex;flex-direction:column;gap:8px;padding:16px;}
+.sched-card{background:var(--bg2);border-radius:14px;border:1px solid var(--border);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.sched-card.today-sched{border-color:var(--accent);}
+.sched-day-col{flex-shrink:0;width:46px;text-align:center;}
+.sched-day-name{font-size:11px;color:var(--text2);font-weight:600;}
+.sched-day-num{font-size:20px;font-weight:800;}
+.sched-divider{width:1px;height:36px;background:var(--border);flex-shrink:0;}
+.sched-info{flex:1;min-width:0;}
+.sched-title{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sched-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.sched-chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.sched-edit-arrow{font-size:18px;color:var(--text3);flex-shrink:0;}
+.today-dot{position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--accent);}
+
+/* ══════ EXERCISE EDITOR (full screen) ══════ */
+.editor-overlay{position:fixed;inset:0;z-index:200;background:var(--bg);transform:translateY(100%);transition:transform .35s cubic-bezier(.32,.72,0,1);display:flex;flex-direction:column;}
+.editor-overlay.open{transform:translateY(0);}
+.editor-header{padding:48px 16px 12px;display:flex;align-items:center;gap:12px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--bg);}
+.editor-back{width:36px;height:36px;border-radius:50%;background:var(--bg3);border:none;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.editor-title{flex:1;font-size:17px;font-weight:700;}
+.editor-save-btn{padding:8px 18px;background:var(--accent);border:none;border-radius:20px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;transition:transform .15s;}
+.editor-save-btn:active{transform:scale(.95);}
+.rest-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;}
+.rest-toggle-label{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.toggle-switch{width:44px;height:24px;border-radius:12px;background:var(--bg3);border:1px solid var(--border);position:relative;cursor:pointer;transition:background .2s;}
+.toggle-switch.on{background:var(--accent);border-color:var(--accent);}
+.toggle-switch::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;}
+.toggle-switch.on::after{transform:translateX(20px);}
+
+/* Muscle tabs */
+.muscle-tabs{display:flex;gap:6px;padding:10px 16px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;border-bottom:1px solid var(--border);}
+.muscle-tabs::-webkit-scrollbar{display:none;}
+.muscle-tab{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.muscle-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* Equipment filter */
+.equip-filter{display:flex;gap:6px;padding:8px 16px;overflow-x:auto;scrollbar-width:none;flex-shrink:0;}
+.equip-filter::-webkit-scrollbar{display:none;}
+.equip-chip{flex-shrink:0;padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s;}
+.equip-chip.active{border-color:transparent;}
+
+/* Exercise list in editor */
+.editor-ex-list{flex:1;overflow-y:auto;padding:8px 16px;}
+.editor-ex-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;border:1px solid var(--border);margin-bottom:8px;cursor:pointer;transition:all .2s;background:var(--bg2);}
+.editor-ex-item.selected{border-color:var(--accent);background:rgba(108,99,255,.1);}
+.editor-ex-item.selected::before{display:none;}
+.editor-ex-emoji{width:44px;height:44px;border-radius:10px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.editor-ex-info{flex:1;min-width:0;}
+.editor-ex-name{font-size:14px;font-weight:600;}
+.editor-ex-meta{display:flex;align-items:center;gap:6px;margin-top:3px;flex-wrap:wrap;}
+.editor-ex-reps{font-size:11px;color:var(--text2);}
+.editor-equip-badge{font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;}
+.editor-checkbox{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.editor-ex-item.selected .editor-checkbox{background:var(--accent);border-color:var(--accent);}
+
+/* Bottom summary bar */
+.editor-bottom{flex-shrink:0;padding:12px 16px 32px;border-top:1px solid var(--border);background:var(--bg2);}
+.editor-selected-count{font-size:13px;color:var(--text2);margin-bottom:8px;}
+.editor-selected-count strong{color:var(--accent);font-size:16px;}
+.editor-selected-pills{display:flex;gap:6px;flex-wrap:wrap;max-height:60px;overflow:hidden;}
+.editor-pill{font-size:11px;padding:3px 10px;border-radius:20px;background:rgba(108,99,255,.2);color:var(--accent);font-weight:600;white-space:nowrap;}
+
+/* PROGRESS */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px;}
+.stat-card{background:var(--bg2);border-radius:14px;border:1px solid var(--border);padding:16px;text-align:center;}
+.stat-val{font-size:28px;font-weight:800;}
+.stat-val.accent{color:var(--accent);}
+.stat-val.green{color:var(--accent3);}
+.stat-val.pink{color:var(--accent2);}
+.stat-label{font-size:11px;color:var(--text2);margin-top:4px;}
+.heatmap{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;padding:0 16px 16px;}
+.heat-cell{aspect-ratio:1;border-radius:5px;background:var(--bg2);}
+.heat-cell.l3{background:var(--accent);}
+.heat-cell.today-cell{outline:2px solid var(--accent2);}
+.heatmap-labels{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;padding:0 16px 8px;}
+.heat-label{text-align:center;font-size:9px;color:var(--text3);}
+.history-list{padding:0 16px;display:flex;flex-direction:column;gap:8px;}
+.history-item{background:var(--bg2);border-radius:12px;border:1px solid var(--border);padding:14px;display:flex;align-items:center;gap:12px;}
+.history-dot{width:10px;height:10px;border-radius:50%;background:var(--accent3);flex-shrink:0;}
+.history-info{flex:1;}
+.history-title{font-size:14px;font-weight:600;}
+.history-date{font-size:11px;color:var(--text2);margin-top:2px;}
+.history-badge{font-size:11px;color:var(--accent3);font-weight:600;}
+
+/* PROFILE */
+.profile-hero{display:flex;align-items:center;gap:16px;padding:24px 20px;}
+.avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+.profile-name{font-size:20px;font-weight:700;}
+.profile-level{font-size:12px;color:var(--text2);margin-top:2px;}
+.settings-list{padding:0 16px;display:flex;flex-direction:column;gap:6px;}
+.settings-item{display:flex;align-items:center;gap:12px;padding:14px;background:var(--bg2);border-radius:12px;border:1px solid var(--border);cursor:pointer;}
+.settings-icon{font-size:18px;width:36px;text-align:center;}
+.settings-label{flex:1;font-size:14px;}
+.settings-arrow{color:var(--text3);font-size:16px;}
+.level-bar-wrap{padding:0 16px 16px;}
+.level-bar{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;margin-top:6px;}
+.level-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 1s ease;}
+.level-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-bottom:4px;}
+
+/* RING */
+.progress-ring-section{padding:16px;display:flex;justify-content:center;}
+.ring-wrap{position:relative;display:inline-block;}
+.ring-svg{transform:rotate(-90deg);}
+.ring-bg{fill:none;stroke:var(--bg3);stroke-width:8;}
+.ring-fg{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset 1s ease;}
+.ring-text{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+
+/* MISC */
+.today-complete{background:linear-gradient(135deg,rgba(67,233,123,.15),rgba(0,201,167,.1));border:1px solid rgba(67,233,123,.3);border-radius:16px;padding:20px;margin:0 16px 16px;text-align:center;}
+.tc-emoji{font-size:40px;margin-bottom:8px;}
+.tc-title{font-size:18px;font-weight:700;color:var(--accent3);}
+.tc-sub{font-size:13px;color:var(--text2);margin-top:4px;}
+.section-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;padding:8px 16px;}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;}
+.badge-purple{background:rgba(108,99,255,.2);color:var(--accent);}
+.badge-pink{background:rgba(255,101,132,.2);color:var(--accent2);}
+.badge-green{background:rgba(67,233,123,.2);color:var(--accent3);}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-icon{font-size:48px;margin-bottom:12px;}
+.empty-text{font-size:14px;line-height:1.6;}
+
+/* ANIMATIONS */
+@keyframes pushup{0%,100%{transform:translateY(0)}50%{transform:translateY(8px)}}
+@keyframes squat{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.75) translateY(4px)}}
+@keyframes jump{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@keyframes plank{0%,100%{transform:rotate(0deg)}50%{transform:rotate(1deg) translateX(2px)}}
+@keyframes crunch{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.85) translateY(4px)}}
+@keyframes run{0%,100%{transform:translateX(0) rotate(0deg)}25%{transform:translateX(2px) rotate(2deg)}75%{transform:translateX(-2px) rotate(-2deg)}}
+@keyframes stretch{0%,100%{transform:scaleX(1)}50%{transform:scaleX(1.1) scaleY(.9)}}
+.anim-pushup{animation:pushup 1.4s ease-in-out infinite;}
+.anim-squat{animation:squat 1.2s ease-in-out infinite;transform-origin:bottom center;}
+.anim-jump{animation:jump 1s ease-in-out infinite;}
+.anim-plank{animation:plank 2s ease-in-out infinite;}
+.anim-crunch{animation:crunch 1.5s ease-in-out infinite;transform-origin:bottom center;}
+.anim-run{animation:run .6s ease-in-out infinite;}
+.anim-stretch{animation:stretch 2s ease-in-out infinite;}
+.confetti-wrap{position:fixed;inset:0;pointer-events:none;z-index:300;overflow:hidden;}
+.lang-btn{position:fixed;top:12px;right:16px;z-index:999;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer;color:var(--text2);transition:border-color .2s;}
+.lang-btn .la{color:var(--accent);}
+.conf{position:absolute;width:8px;height:8px;border-radius:2px;animation:conf-fall 2s ease-out forwards;}
+@keyframes conf-fall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+</style>
+</head>
+<body>
+<button class="lang-btn" onclick="toggleLang()" aria-label="Language toggle"><span id="la-zh" class="la">中</span> | <span id="la-en">EN</span></button>
+<div id="app">
+
+  <!-- ══ TODAY ══ -->
+  <div class="page active" id="page-today">
+    <div class="page-header">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="page-title" id="greeting">今天</div>
+          <div class="page-sub" id="today-date"></div>
+        </div>
+        <div class="badge badge-purple" id="streak-badge">🔥 <span id="streak-count">0</span> <span id="t-streak-suffix">天连续</span></div>
+      </div>
+    </div>
+    <div class="day-strip" id="day-strip"></div>
+    <div class="today-hero">
+      <div class="hero-day" id="hero-day-label"></div>
+      <div class="hero-title" id="hero-workout-name"></div>
+      <div class="hero-meta">
+        <div class="hero-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><span id="hero-duration"></span></div>
+        <div class="hero-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span id="hero-calories"></span></div>
+        <div class="hero-stat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg><span id="hero-ex-count"></span></div>
+      </div>
+      <button class="start-btn" id="t-start-btn" onclick="startWorkout()">开始训练 →</button>
+    </div>
+    <div class="progress-ring-section">
+      <div class="ring-wrap">
+        <svg class="ring-svg" width="120" height="120" viewBox="0 0 120 120">
+          <circle class="ring-bg" cx="60" cy="60" r="52"/>
+          <circle class="ring-fg" id="progress-ring-fill" cx="60" cy="60" r="52" stroke="url(#g1)" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+          <defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#6c63ff"/><stop offset="100%" style="stop-color:#43e97b"/></linearGradient></defs>
+        </svg>
+        <div class="ring-text">
+          <div style="font-size:24px;font-weight:800" id="ring-pct">0%</div>
+          <div style="font-size:11px;color:var(--text2)" id="t-ring-complete">完成</div>
+        </div>
+      </div>
+    </div>
+    <div class="section-title" id="t-section-exercises">训练动作</div>
+    <div class="ex-list" id="ex-list"></div>
+  </div>
+
+  <!-- ══ PLAN ══ -->
+  <div class="page" id="page-plan">
+    <div class="page-header">
+      <div class="page-title" id="t-plan-title">训练计划</div>
+      <div class="page-sub" id="t-plan-sub">点击任意一天 · 精确选择每个动作</div>
+    </div>
+    <div class="schedule-grid" id="schedule-grid"></div>
+  </div>
+
+  <!-- ══ PROGRESS ══ -->
+  <div class="page" id="page-progress">
+    <div class="page-header">
+      <div class="page-title" id="t-progress-title">训练记录</div>
+      <div class="page-sub" id="progress-sub">加载中...</div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-val accent" id="stat-total">0</div><div class="stat-label" id="t-stat-total">总训练次数</div></div>
+      <div class="stat-card"><div class="stat-val green" id="stat-streak">0</div><div class="stat-label" id="t-stat-streak">当前连续天</div></div>
+      <div class="stat-card"><div class="stat-val pink" id="stat-week">0</div><div class="stat-label" id="t-stat-week">本周完成</div></div>
+      <div class="stat-card"><div class="stat-val" id="stat-exercises">0</div><div class="stat-label" id="t-stat-exercises">总动作次数</div></div>
+    </div>
+    <div class="section-title" style="padding-top:8px" id="t-heatmap-title">活跃热力图</div>
+    <div class="heatmap-labels" id="heatmap-labels"></div>
+    <div class="heatmap" id="heatmap"></div>
+    <div class="section-title" id="t-history-title">训练历史</div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+
+  <!-- ══ PROFILE ══ -->
+  <div class="page" id="page-profile">
+    <div class="profile-hero">
+      <div class="avatar">💪</div>
+      <div>
+        <div class="profile-name" id="profile-name">健身达人</div>
+        <div class="profile-level" id="profile-level-text">新手 · Lv.1</div>
+      </div>
+    </div>
+    <div class="level-bar-wrap">
+      <div class="level-label"><span id="t-xp-label">当前等级经验</span><span id="level-xp-text">0 / 100 XP</span></div>
+      <div class="level-bar"><div class="level-fill" id="level-bar-fill" style="width:0%"></div></div>
+    </div>
+    <div class="section-title" id="t-profile-settings">设置</div>
+    <div class="settings-list">
+      <div class="settings-item" onclick="editName()"><div class="settings-icon">✏️</div><div class="settings-label" id="t-profile-edit">修改昵称</div><div class="settings-arrow">›</div></div>
+      <div class="settings-item" onclick="toggleTheme()"><div class="settings-icon">🎨</div><div class="settings-label" id="t-profile-theme">主题颜色</div><div class="settings-arrow">›</div></div>
+      <div class="settings-item" onclick="resetProgress()"><div class="settings-icon">🔄</div><div class="settings-label" id="t-profile-reset">重置数据</div><div class="settings-arrow">›</div></div>
+    </div>
+  </div>
+
+  <nav>
+    <div class="tab active" id="tab-today" onclick="switchPage('today')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span id="t-tab-today">今天</span>
+    </div>
+    <div class="tab" id="tab-plan" onclick="switchPage('plan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span id="t-tab-plan">计划</span>
+    </div>
+    <div class="tab" id="tab-progress" onclick="switchPage('progress')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span id="t-tab-progress">记录</span>
+    </div>
+    <div class="tab" id="tab-profile" onclick="switchPage('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span id="t-tab-profile">我的</span>
+    </div>
+  </nav>
+</div>
+
+<!-- ══ EXERCISE MODAL ══ -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-anim" id="modal-anim"></div>
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-meta" id="modal-meta"></div>
+    <div class="modal-sets" id="modal-sets"></div>
+    <div class="modal-tips" id="modal-tips"></div>
+    <button class="done-btn" id="modal-done-btn" onclick="completeExercise()">完成此动作 ✓</button>
+  </div>
+</div>
+
+<!-- ══ EXERCISE EDITOR ══ -->
+<div class="editor-overlay" id="editor-overlay">
+  <div class="editor-header">
+    <button class="editor-back" onclick="closeEditor()">‹</button>
+    <div class="editor-title" id="editor-title">选择训练动作</div>
+    <button class="editor-save-btn" id="t-editor-save" onclick="saveEditor()">保存 ✓</button>
+  </div>
+  <div class="rest-toggle-row">
+    <div class="rest-toggle-label" id="t-rest-toggle-label">😴 设为休息日</div>
+    <div class="toggle-switch" id="rest-toggle" onclick="toggleRestDay()"></div>
+  </div>
+  <div class="muscle-tabs" id="muscle-tabs"></div>
+  <div class="equip-filter" id="equip-filter"></div>
+  <div class="editor-ex-list" id="editor-ex-list"></div>
+  <div class="editor-bottom">
+    <div class="editor-selected-count" id="editor-selected-count">已选 <strong>0</strong> 个动作</div>
+    <div class="editor-selected-pills" id="editor-selected-pills"></div>
+  </div>
+</div>
+
+<!-- Timer -->
+<div class="timer-bar" id="timer-bar">
+  <div class="timer-circle">
+    <svg width="44" height="44" viewBox="0 0 44 44">
+      <circle class="t-bg" cx="22" cy="22" r="18"/>
+      <circle class="t-fill" id="timer-fill" cx="22" cy="22" r="18"/>
+    </svg>
+    <div class="timer-label" id="timer-label">60</div>
+  </div>
+  <div class="timer-info">
+    <div class="timer-title" id="t-timer-title">组间休息</div>
+    <div class="timer-sub" id="timer-sub"></div>
+  </div>
+  <button class="timer-skip" id="t-timer-skip" onclick="skipTimer()">跳过</button>
+</div>
+<div class="confetti-wrap" id="confetti-wrap"></div>
+
+<script>
+// ══════════════════════════════════════
+//  EQUIPMENT CONFIG
+// ══════════════════════════════════════
+const EQUIP = {
+  bodyweight:{ label:'徒手', color:'#43e97b', bg:'rgba(67,233,123,.18)' },
+  dumbbell:  { label:'哑铃', color:'#4facfe', bg:'rgba(79,172,254,.18)' },
+  barbell:   { label:'杠铃', color:'#ff6584', bg:'rgba(255,101,132,.18)' },
+  machine:   { label:'器械', color:'#f7971e', bg:'rgba(247,151,30,.18)'  },
+  cable:     { label:'绳索', color:'#f093fb', bg:'rgba(240,147,251,.18)' },
+  equipment: { label:'器材', color:'#ffe064', bg:'rgba(255,224,100,.18)' },
+};
+
+// ══════════════════════════════════════
+//  MUSCLE GROUP CONFIG
+// ══════════════════════════════════════
+const MUSCLES = [
+  { id:'chest',    label:'胸部',  icon:'🫀' },
+  { id:'back',     label:'背部',  icon:'🔙' },
+  { id:'shoulder', label:'肩部',  icon:'💫' },
+  { id:'bicep',    label:'二头肌', icon:'💪' },
+  { id:'tricep',   label:'三头肌', icon:'🦾' },
+  { id:'legs',     label:'腿部',  icon:'🦵' },
+  { id:'glutes',   label:'臀部',  icon:'🍑' },
+  { id:'core',     label:'核心',  icon:'🎯' },
+  { id:'cardio',   label:'有氧',  icon:'🏃' },
+];
+
+// ══════════════════════════════════════
+//  EXERCISE DATABASE  (85 exercises)
+// ══════════════════════════════════════
+const DB = [
+  // ── CHEST ──
+  {id:'c01',muscle:'chest', name:'杠铃平板卧推',  equip:'barbell',   sets:4, reps:'8次',   type:'strength',anim:'pushup', emoji:'🏋️', tip:'握距略宽于肩，下放至胸部，保持肩胛骨收紧。爆发向上推，顶部不要锁死肘关节。'},
+  {id:'c02',muscle:'chest', name:'哑铃平板卧推',  equip:'dumbbell',  sets:4, reps:'10次',  type:'strength',anim:'pushup', emoji:'🔵', tip:'哑铃允许更大活动幅度，下放时感受胸肌拉伸，推起时夹胸，顶部哑铃微微相碰。'},
+  {id:'c03',muscle:'chest', name:'杠铃上斜卧推',  equip:'barbell',   sets:4, reps:'8次',   type:'strength',anim:'pushup', emoji:'📐', tip:'上斜30-45度，主要激活上胸，握距与平板同，保持下背部贴紧靠背。'},
+  {id:'c04',muscle:'chest', name:'哑铃上斜卧推',  equip:'dumbbell',  sets:3, reps:'10次',  type:'strength',anim:'pushup', emoji:'🔵', tip:'坐姿上斜板，哑铃以弧形轨迹推起，上胸肌参与更多。'},
+  {id:'c05',muscle:'chest', name:'哑铃下斜卧推',  equip:'dumbbell',  sets:3, reps:'10次',  type:'strength',anim:'pushup', emoji:'⬇️', tip:'下斜位置主要锻炼下胸，保持腹部收紧，防止下背过度弯曲。'},
+  {id:'c06',muscle:'chest', name:'哑铃飞鸟',     equip:'dumbbell',  sets:3, reps:'12次',  type:'strength',anim:'stretch',emoji:'🦋', tip:'手肘微弯保持固定，两侧向下展开时感受胸肌被拉伸，用胸部力量夹起。'},
+  {id:'c07',muscle:'chest', name:'上斜哑铃飞鸟',  equip:'dumbbell',  sets:3, reps:'12次',  type:'strength',anim:'stretch',emoji:'💫', tip:'上斜板飞鸟可以更有效拉伸上胸，弧形动作轨迹，全程保持肘部微弯。'},
+  {id:'c08',muscle:'chest', name:'绳索夹胸',     equip:'cable',     sets:3, reps:'15次',  type:'strength',anim:'stretch',emoji:'🔗', tip:'站在绳索架中间，双臂由两侧向身前夹合，保持持续张力，顶部停顿1秒。'},
+  {id:'c09',muscle:'chest', name:'俯卧撑',       equip:'bodyweight',sets:4, reps:'12次',  type:'strength',anim:'pushup', emoji:'🤸', tip:'双手与肩同宽，身体保持一条直线，胸部贴近地面后推起。呼气推起，吸气下降。'},
+  {id:'c10',muscle:'chest', name:'宽距俯卧撑',   equip:'bodyweight',sets:3, reps:'15次',  type:'strength',anim:'pushup', emoji:'🙌', tip:'双手放置比肩宽约1.5倍，肘部向外展开，更多激活胸部外侧。'},
+  {id:'c11',muscle:'chest', name:'钻石俯卧撑',   equip:'bodyweight',sets:3, reps:'10次',  type:'strength',anim:'pushup', emoji:'💎', tip:'双手组成菱形，手放胸口正下方。徒手中锻炼胸部内侧和三头肌最有效的动作之一。'},
+  {id:'c12',muscle:'chest', name:'双杠臂屈伸(胸)',equip:'bodyweight',sets:3, reps:'10次',  type:'strength',anim:'pushup', emoji:'🔩', tip:'身体前倾约30度，肘部向外张开，这样重心落在胸部。感受下胸拉伸后推起。'},
+
+  // ── BACK ──
+  {id:'b01',muscle:'back',  name:'杠铃俯身划船',  equip:'barbell',   sets:4, reps:'8次',   type:'strength',anim:'stretch',emoji:'🏋️', tip:'俯身约45度，背部挺直，将杠铃拉向腹部，顶部挤压背部肌肉1秒，缓慢放下。'},
+  {id:'b02',muscle:'back',  name:'单臂哑铃划船',  equip:'dumbbell',  sets:4, reps:'10次/侧',type:'strength',anim:'stretch',emoji:'🚣', tip:'一手扶凳，一手持哑铃，将肘部拉向天花板，感受背阔肌充分收缩。'},
+  {id:'b03',muscle:'back',  name:'引体向上',      equip:'bodyweight',sets:4, reps:'6次',   type:'strength',anim:'stretch',emoji:'🏅', tip:'握距与肩同宽，从完全悬挂开始，将下巴拉过横杆，顶部停顿后缓慢下降。'},
+  {id:'b04',muscle:'back',  name:'宽握引体向上',  equip:'bodyweight',sets:3, reps:'6次',   type:'strength',anim:'stretch',emoji:'🔝', tip:'宽握侧重锻炼背阔肌，动作幅度比肩宽握更小，保持核心收紧。'},
+  {id:'b05',muscle:'back',  name:'高位下拉',      equip:'machine',   sets:4, reps:'10次',  type:'strength',anim:'stretch',emoji:'⬇️', tip:'坐姿，将横杆拉至上胸，顶部夹背，缓慢放回。宽握锻炼背阔，窄握锻炼大圆肌。'},
+  {id:'b06',muscle:'back',  name:'坐姿绳索划船',  equip:'cable',     sets:3, reps:'12次',  type:'strength',anim:'stretch',emoji:'🔗', tip:'坐直，将绳索拉向腹部，顶部夹背停顿，感受菱形肌和斜方肌中下部收缩。'},
+  {id:'b07',muscle:'back',  name:'T型杠划船',     equip:'barbell',   sets:3, reps:'10次',  type:'strength',anim:'stretch',emoji:'⚓', tip:'站在T型杠上，俯身45度，将重量拉向腹部，是厚背的经典动作。'},
+  {id:'b08',muscle:'back',  name:'反手划船',      equip:'bodyweight',sets:3, reps:'10次',  type:'strength',anim:'stretch',emoji:'🔙', tip:'找稳固桌子，仰卧其下，双手抓住桌沿，将胸部拉向桌面，锻炼背部和二头肌。'},
+  {id:'b09',muscle:'back',  name:'超人式',        equip:'bodyweight',sets:3, reps:'15次',  type:'bw',      anim:'stretch',emoji:'🦸', tip:'俯卧，同时抬起双臂和双腿，顶部保持2秒，强化下背部竖脊肌和臀大肌。'},
+  {id:'b10',muscle:'back',  name:'直臂绳索下压',  equip:'cable',     sets:3, reps:'15次',  type:'strength',anim:'stretch',emoji:'💪', tip:'站立，双臂伸直将绳索由头顶压至髋部，主要孤立锻炼背阔肌。'},
+
+  // ── SHOULDERS ──
+  {id:'s01',muscle:'shoulder',name:'杠铃推举(站姿)',equip:'barbell', sets:4, reps:'8次',   type:'strength',anim:'stretch',emoji:'🏋️', tip:'握距与肩同宽，将杠铃从锁骨推过头顶至完全伸直，锁定肩胛骨，核心收紧。'},
+  {id:'s02',muscle:'shoulder',name:'哑铃坐姿推举', equip:'dumbbell',  sets:4, reps:'10次',  type:'strength',anim:'stretch',emoji:'🔵', tip:'坐直靠背，哑铃由耳侧推至头顶，顶部哑铃不要相碰，感受三角肌收缩。'},
+  {id:'s03',muscle:'shoulder',name:'哑铃侧平举',   equip:'dumbbell',  sets:4, reps:'15次',  type:'strength',anim:'stretch',emoji:'↔️', tip:'微微俯身，手肘轻微弯曲，以肘关节领先，将哑铃举至肩高。拇指微微朝下效果更好。'},
+  {id:'s04',muscle:'shoulder',name:'哑铃前平举',   equip:'dumbbell',  sets:3, reps:'12次',  type:'strength',anim:'stretch',emoji:'⬆️', tip:'双臂交替或同时向前举至肩高，主要锻炼三角肌前束，不要借助身体惯性。'},
+  {id:'s05',muscle:'shoulder',name:'俯身哑铃飞鸟', equip:'dumbbell',  sets:3, reps:'15次',  type:'strength',anim:'stretch',emoji:'🦅', tip:'身体前倾90度，手肘微弯，向两侧举起哑铃至肩高，主要锻炼三角肌后束。'},
+  {id:'s06',muscle:'shoulder',name:'阿诺德推举',   equip:'dumbbell',  sets:3, reps:'12次',  type:'strength',anim:'stretch',emoji:'⭐', tip:'起始位手心朝内，推举过程中旋转手腕至手心朝外，全范围激活三角肌前束和中束。'},
+  {id:'s07',muscle:'shoulder',name:'直立划船',     equip:'barbell',   sets:3, reps:'12次',  type:'strength',anim:'stretch',emoji:'⬆️', tip:'双手窄握杠铃，将杠铃沿身体拉至下巴高度，肘部高于手腕，激活三角肌和斜方肌。'},
+  {id:'s08',muscle:'shoulder',name:'绳索侧平举',   equip:'cable',     sets:3, reps:'15次',  type:'strength',anim:'stretch',emoji:'🔗', tip:'单侧绳索侧平举提供更持续的张力，全程保持张力比哑铃侧平举更有效。'},
+  {id:'s09',muscle:'shoulder',name:'倒立肩推',     equip:'bodyweight',sets:3, reps:'8次',   type:'strength',anim:'stretch',emoji:'🙆', tip:'呈倒V形靠墙，双脚踮起，头部下降至接近地面，主要锻炼三角肌前束和中束。'},
+  {id:'s10',muscle:'shoulder',name:'肩部绕环',     equip:'bodyweight',sets:2, reps:'20次',  type:'bw',      anim:'stretch',emoji:'🔄', tip:'双臂向两侧平展，做大幅度的前后圆周运动，充分激活肩袖肌群，适合热身。'},
+
+  // ── BICEPS ──
+  {id:'bi01',muscle:'bicep', name:'杠铃弯举',      equip:'barbell',   sets:4, reps:'10次',  type:'strength',anim:'crunch', emoji:'🏋️', tip:'握距与肩同宽，肘部固定于体侧，将杠铃完全弯举至肩前，顶部停顿并收缩。'},
+  {id:'bi02',muscle:'bicep', name:'哑铃交替弯举',  equip:'dumbbell',  sets:3, reps:'12次/侧',type:'strength',anim:'crunch', emoji:'🔵', tip:'交替弯举可以集中注意力于单侧，在顶点旋转手腕（旋后）以充分收缩二头肌。'},
+  {id:'bi03',muscle:'bicep', name:'锤式弯举',      equip:'dumbbell',  sets:3, reps:'12次',  type:'strength',anim:'crunch', emoji:'🔨', tip:'手心相对（中立握），主要锻炼肱肌和肱桡肌，增加手臂厚度。'},
+  {id:'bi04',muscle:'bicep', name:'集中弯举',      equip:'dumbbell',  sets:3, reps:'12次/侧',type:'strength',anim:'crunch', emoji:'🎯', tip:'坐姿，肘部抵住大腿内侧固定，单手弯举，是孤立锻炼二头肌峰值的经典动作。'},
+  {id:'bi05',muscle:'bicep', name:'绳索弯举',      equip:'cable',     sets:3, reps:'15次',  type:'strength',anim:'crunch', emoji:'🔗', tip:'绳索提供更持续的张力，站立弯举或俯身弯举均可，全程保持张力。'},
+  {id:'bi06',muscle:'bicep', name:'牧师凳弯举',    equip:'machine',   sets:3, reps:'10次',  type:'strength',anim:'crunch', emoji:'⚙️', tip:'肘部架在牧师凳上固定，完全隔离二头肌，防止借力，注意不要超伸手肘。'},
+  {id:'bi07',muscle:'bicep', name:'反握引体向上',  equip:'bodyweight',sets:3, reps:'8次',   type:'strength',anim:'stretch',emoji:'🏅', tip:'手心朝向自己（反握），引体向上时二头肌参与更多，肩胛骨先向下后向后拉。'},
+  {id:'bi08',muscle:'bicep', name:'哑铃上斜弯举',  equip:'dumbbell',  sets:3, reps:'10次',  type:'strength',anim:'crunch', emoji:'📐', tip:'仰躺在上斜板上，手臂自然下垂，弯举时可以充分拉伸二头肌长头。'},
+
+  // ── TRICEPS ──
+  {id:'tr01',muscle:'tricep',name:'仰卧臂屈伸',   equip:'barbell',   sets:4, reps:'10次',  type:'strength',anim:'pushup', emoji:'💀', tip:'躺在平凳上，杠铃由额头上方弯曲肘部下降至额头，主要锻炼三头肌长头。'},
+  {id:'tr02',muscle:'tricep',name:'绳索下压',     equip:'cable',     sets:4, reps:'12次',  type:'strength',anim:'pushup', emoji:'⬇️', tip:'站立，肘部贴于体侧固定，将绳索由高位压至大腿前，顶部充分收缩三头肌。'},
+  {id:'tr03',muscle:'tricep',name:'哑铃过头臂屈伸',equip:'dumbbell', sets:3, reps:'12次',  type:'strength',anim:'stretch',emoji:'🔵', tip:'双手握一个哑铃举过头顶，弯曲肘部将哑铃下降至脑后，主要锻炼三头肌长头。'},
+  {id:'tr04',muscle:'tricep',name:'哑铃俯身臂屈伸',equip:'dumbbell', sets:3, reps:'12次/侧',type:'strength',anim:'stretch',emoji:'🦵', tip:'俯身，上臂平行地面固定，将前臂向后伸直，顶部充分收缩三头肌外侧头。'},
+  {id:'tr05',muscle:'tricep',name:'双杠臂屈伸',   equip:'bodyweight',sets:3, reps:'10次',  type:'strength',anim:'pushup', emoji:'🔩', tip:'身体保持直立（不前倾），肘部沿体侧弯曲，主要锻炼三头肌，是三头肌最有效的徒手动作。'},
+  {id:'tr06',muscle:'tricep',name:'钻石俯卧撑',   equip:'bodyweight',sets:3, reps:'10次',  type:'strength',anim:'pushup', emoji:'💎', tip:'双手组成菱形放于胸前，下降时肘部紧贴身体两侧，推起时三头肌发力。'},
+  {id:'tr07',muscle:'tricep',name:'窄距杠铃卧推',  equip:'barbell',  sets:3, reps:'10次',  type:'strength',anim:'pushup', emoji:'🔴', tip:'握距略窄于肩，将杠铃下放至下胸或胸口，肘部贴身，三头肌为主要发力肌。'},
+  {id:'tr08',muscle:'tricep',name:'单臂绳索下压',  equip:'cable',    sets:3, reps:'15次/侧',type:'strength',anim:'pushup', emoji:'🔗', tip:'单臂下压可以更专注感受每侧三头肌，使用较轻重量，保证完整动作范围。'},
+
+  // ── LEGS ──
+  {id:'l01',muscle:'legs',  name:'杠铃深蹲',     equip:'barbell',   sets:4, reps:'8次',   type:'strength',anim:'squat',  emoji:'🏋️', tip:'杠铃放于斜方肌上方，深蹲至大腿平行地面或更深。全程保持脊柱中立、核心收紧。'},
+  {id:'l02',muscle:'legs',  name:'前蹲',         equip:'barbell',   sets:3, reps:'8次',   type:'strength',anim:'squat',  emoji:'🔴', tip:'杠铃放于三角肌前侧，肘部高举，躯干更为直立，对股四头肌刺激更强。'},
+  {id:'l03',muscle:'legs',  name:'腿举',         equip:'machine',   sets:4, reps:'12次',  type:'strength',anim:'squat',  emoji:'⚙️', tip:'脚放在踏板上方1/3处，双脚略宽于肩，不要锁死膝盖，全程保持背部贴紧靠背。'},
+  {id:'l04',muscle:'legs',  name:'哈克深蹲',     equip:'machine',   sets:3, reps:'10次',  type:'strength',anim:'squat',  emoji:'⚙️', tip:'机器哈克深蹲让脊柱保持直立，对股四头肌孤立效果好，适合新手学习深蹲模式。'},
+  {id:'l05',muscle:'legs',  name:'哑铃深蹲',     equip:'dumbbell',  sets:3, reps:'15次',  type:'strength',anim:'squat',  emoji:'🔵', tip:'双手持哑铃或单手持哑铃置于胸前（戈布雷特深蹲），适合居家训练。'},
+  {id:'l06',muscle:'legs',  name:'弓步蹲',       equip:'bodyweight',sets:3, reps:'12次/侧',type:'strength',anim:'squat',  emoji:'🚶', tip:'大步向前迈，前腿弯曲90度，后膝接近地面，保持上身挺直，增强平衡性。'},
+  {id:'l07',muscle:'legs',  name:'哑铃弓步蹲',   equip:'dumbbell',  sets:3, reps:'12次/侧',type:'strength',anim:'squat',  emoji:'🔵', tip:'双手持哑铃进行弓步，增加训练强度，可做静态弓步或行走弓步。'},
+  {id:'l08',muscle:'legs',  name:'保加利亚分腿蹲',equip:'bodyweight',sets:3, reps:'10次/侧',type:'strength',anim:'squat',  emoji:'🇧🇬', tip:'后脚放于凳子上，前脚向前伸出，单腿深蹲，对股四头肌和臀部的单侧训练非常有效。'},
+  {id:'l09',muscle:'legs',  name:'罗马尼亚硬拉', equip:'barbell',   sets:4, reps:'10次',  type:'strength',anim:'stretch',emoji:'🏋️', tip:'膝盖微弯保持固定，以髋部为铰链俯身，将杠铃沿腿部下滑，感受腘绳肌拉伸再收缩。'},
+  {id:'l10',muscle:'legs',  name:'腿弯举',       equip:'machine',   sets:4, reps:'12次',  type:'strength',anim:'crunch', emoji:'⚙️', tip:'俯卧腿弯举，将脚踝向臀部方向弯曲，顶部收缩腘绳肌1秒，缓慢放下。'},
+  {id:'l11',muscle:'legs',  name:'腿伸展',       equip:'machine',   sets:3, reps:'15次',  type:'strength',anim:'squat',  emoji:'⚙️', tip:'坐姿腿伸展，将小腿向前伸直，孤立锻炼股四头肌，顶部停顿感受收缩。'},
+  {id:'l12',muscle:'legs',  name:'提踵',         equip:'bodyweight',sets:4, reps:'20次',  type:'strength',anim:'squat',  emoji:'👟', tip:'站立踮起脚尖，顶部停顿1秒感受小腿收缩，缓慢下降至完全拉伸。单脚版效果更好。'},
+  {id:'l13',muscle:'legs',  name:'坐姿提踵',     equip:'machine',   sets:4, reps:'20次',  type:'strength',anim:'squat',  emoji:'⚙️', tip:'坐姿提踵主要锻炼比目鱼肌，与站姿提踵（锻炼腓肠肌）互补训练效果更全面。'},
+
+  // ── GLUTES ──
+  {id:'g01',muscle:'glutes',name:'臀推(杠铃)',   equip:'barbell',   sets:4, reps:'12次',  type:'strength',anim:'crunch', emoji:'🏋️', tip:'肩部靠在凳沿，杠铃置于髋骨，推至髋部完全伸展，顶部极力收缩臀大肌1秒。'},
+  {id:'g02',muscle:'glutes',name:'臀桥',         equip:'bodyweight',sets:4, reps:'15次',  type:'strength',anim:'crunch', emoji:'🌉', tip:'仰卧，双脚踩地，将臀部顶起，顶部收紧臀肌并停顿，慢速下降。'},
+  {id:'g03',muscle:'glutes',name:'哑铃臀推',     equip:'dumbbell',  sets:3, reps:'15次',  type:'strength',anim:'crunch', emoji:'🔵', tip:'同杠铃臀推，将哑铃置于髋骨代替杠铃，适合家庭训练。'},
+  {id:'g04',muscle:'glutes',name:'侧卧蚌式',     equip:'bodyweight',sets:3, reps:'20次/侧',type:'bw',      anim:'stretch',emoji:'🦀', tip:'侧卧，双腿弯曲，保持双脚并拢，将上方膝盖向天花板打开，孤立锻炼臀中肌。'},
+  {id:'g05',muscle:'glutes',name:'俯身髋外展',   equip:'machine',   sets:3, reps:'15次',  type:'strength',anim:'stretch',emoji:'⚙️', tip:'使用髋外展机，坐姿将双腿向外展开，主要锻炼臀中肌，对臀型塑造非常有效。'},
+  {id:'g06',muscle:'glutes',name:'直腿硬拉',     equip:'barbell',   sets:3, reps:'10次',  type:'strength',anim:'stretch',emoji:'🔴', tip:'双腿伸直，以腰背部带动身体，强调腘绳肌和臀大肌的配合，注意保持背部平直。'},
+  {id:'g07',muscle:'glutes',name:'跪姿后踢腿',   equip:'bodyweight',sets:3, reps:'15次/侧',type:'bw',      anim:'stretch',emoji:'🐎', tip:'四点跪姿，单腿向后上方踢起，顶部收缩臀肌，不要过度弯腰代偿。'},
+
+  // ── CORE ──
+  {id:'co01',muscle:'core', name:'平板支撑',      equip:'bodyweight',sets:3, reps:'45秒',  type:'bw',      anim:'plank',  emoji:'🧘', tip:'肘撑，保持身体从头到脚一条直线，腹部收紧向内收，臀部不要抬起或下沉。'},
+  {id:'co02',muscle:'core', name:'卷腹',          equip:'bodyweight',sets:4, reps:'20次',  type:'bw',      anim:'crunch', emoji:'📋', tip:'仰卧，双手放耳侧，下巴收，上背部卷起离地，保持腰部贴地，不要用颈部发力。'},
+  {id:'co03',muscle:'core', name:'仰卧起坐',      equip:'bodyweight',sets:3, reps:'15次',  type:'bw',      anim:'crunch', emoji:'⬆️', tip:'仰卧双脚固定，上身完全坐起，活动范围比卷腹更大，同时激活髂腰肌。'},
+  {id:'co04',muscle:'core', name:'俄罗斯转体',    equip:'bodyweight',sets:3, reps:'20次',  type:'bw',      anim:'crunch', emoji:'🌀', tip:'坐姿，上身后倾约45°，双脚离地，躯干左右旋转触地两侧，重点锻炼腹斜肌。'},
+  {id:'co05',muscle:'core', name:'侧平板',        equip:'bodyweight',sets:3, reps:'30秒/侧',type:'bw',     anim:'plank',  emoji:'📐', tip:'侧卧，单臂撑起，保持身体侧面一条直线，感受侧腹肌收紧，髋部不要下沉。'},
+  {id:'co06',muscle:'core', name:'V字起坐',       equip:'bodyweight',sets:3, reps:'12次',  type:'bw',      anim:'crunch', emoji:'✌️', tip:'仰卧，同时抬起上半身和双腿，手触脚尖，腹部强烈收缩，是腹肌综合训练动作。'},
+  {id:'co07',muscle:'core', name:'悬挂举腿',      equip:'bodyweight',sets:3, reps:'12次',  type:'bw',      anim:'crunch', emoji:'🏅', tip:'双手握横杆悬挂，将双腿举至水平或更高，是腹肌下部的顶级训练动作。'},
+  {id:'co08',muscle:'core', name:'登山跑',        equip:'bodyweight',sets:3, reps:'20次/侧',type:'cardio',  anim:'run',    emoji:'⛰️', tip:'俯撑姿势，交替将膝盖拉向胸口，保持臀部平稳不要起伏，速度越快强度越高。'},
+  {id:'co09',muscle:'core', name:'腹轮',          equip:'equipment', sets:3, reps:'10次',  type:'bw',      anim:'stretch',emoji:'🔩', tip:'跪姿，双手握腹轮向前滚出至身体接近水平，核心收紧将身体拉回，是腹肌高级训练。'},
+  {id:'co10',muscle:'core', name:'绳索卷腹',      equip:'cable',     sets:3, reps:'15次',  type:'strength',anim:'crunch', emoji:'🔗', tip:'跪在高位绳索前，将绳索向下卷腹，顶部收缩停顿，绳索训练能给腹肌施加持续张力。'},
+  {id:'co11',muscle:'core', name:'自行车卷腹',    equip:'bodyweight',sets:3, reps:'20次',  type:'bw',      anim:'crunch', emoji:'🚲', tip:'仰卧，交替将肘部与对侧膝盖相触，同时充分旋转躯干，是腹斜肌的高效训练。'},
+  {id:'co12',muscle:'core', name:'平板支撑交替抬腿',equip:'bodyweight',sets:3,reps:'10次/侧',type:'bw',    anim:'plank',  emoji:'🧘', tip:'在平板支撑基础上交替抬起单腿，增加臀部和脊柱稳定性训练的挑战性。'},
+
+  // ── CARDIO ──
+  {id:'ca01',muscle:'cardio',name:'跑步机',       equip:'machine',   sets:1, reps:'20分钟', type:'cardio',anim:'run',    emoji:'🏃', tip:'以中等强度（最大心率65-75%）稳态有氧，或进行间歇冲刺训练（HIIT）提高心肺耐力。'},
+  {id:'ca02',muscle:'cardio',name:'跳绳',         equip:'equipment', sets:3, reps:'3分钟',  type:'cardio',anim:'jump',   emoji:'🪢', tip:'保持手腕转动，手肘贴近身体，双脚轻盈跳跃。可以双脚跳、单脚跳或交叉跳提高难度。'},
+  {id:'ca03',muscle:'cardio',name:'开合跳',       equip:'bodyweight',sets:3, reps:'40次',   type:'cardio',anim:'jump',   emoji:'⭐', tip:'双脚并拢起跳，同时双臂上举，落地时双脚分开至比肩宽，是有效的全身热身动作。'},
+  {id:'ca04',muscle:'cardio',name:'波比跳',       equip:'bodyweight',sets:3, reps:'10次',   type:'cardio',anim:'jump',   emoji:'🌊', tip:'蹲下撑地→跳出俯卧撑位→做一个俯卧撑→跳回→向上跃起。全身综合，高效燃脂。'},
+  {id:'ca05',muscle:'cardio',name:'高抬腿',       equip:'bodyweight',sets:3, reps:'30秒',   type:'cardio',anim:'run',    emoji:'🦵', tip:'原地跑步，尽量将膝盖抬至腰部高度，手臂积极配合摆动，保持上身挺直不晃动。'},
+  {id:'ca06',muscle:'cardio',name:'骑行机',       equip:'machine',   sets:1, reps:'20分钟', type:'cardio',anim:'run',    emoji:'🚲', tip:'调节阻力至合适强度，保持踏频80-90转/分钟，是低冲击力有氧训练的理想选择。'},
+  {id:'ca07',muscle:'cardio',name:'划船机',       equip:'machine',   sets:1, reps:'15分钟', type:'cardio',anim:'stretch',emoji:'🚣', tip:'驱腿→身体后倾→手臂拉回，动作顺序非常重要。划船机是全身性有氧加力量的结合。'},
+  {id:'ca08',muscle:'cardio',name:'登山机',       equip:'machine',   sets:1, reps:'15分钟', type:'cardio',anim:'run',    emoji:'⛰️', tip:'保持正确姿势，上半身稍微前倾，踏步要完整，有效燃烧热量同时强化下肢。'},
+  {id:'ca09',muscle:'cardio',name:'HIIT间歇训练', equip:'bodyweight',sets:4, reps:'30秒冲/30秒歇',type:'cardio',anim:'jump',emoji:'⚡',tip:'全力冲刺30秒（波比跳/高抬腿/跳绳）后休息30秒，循环4组。高效燃脂，提升代谢。'},
+  {id:'ca10',muscle:'cardio',name:'侧步跳',       equip:'bodyweight',sets:3, reps:'30秒',   type:'cardio',anim:'jump',   emoji:'↔️', tip:'双脚并拢，向右跳一大步，落地后立即向左跳，保持膝盖微弯，训练横向移动能力。'},
+];
+
+// ══════════════════════════════════════
+//  I18N
+// ══════════════════════════════════════
+const EQUIP_EN={bodyweight:'Bodyweight',dumbbell:'Dumbbell',barbell:'Barbell',machine:'Machine',cable:'Cable',equipment:'Equipment'};
+const MUSCLE_EN={chest:'Chest',back:'Back',shoulder:'Shoulder',bicep:'Biceps',tricep:'Triceps',legs:'Legs',glutes:'Glutes',core:'Core',cardio:'Cardio'};
+const DB_EN={
+  c01:{name:'Barbell Bench Press',tip:'Grip slightly wider than shoulders. Lower to chest, press up explosively without locking elbows at top.'},
+  c02:{name:'Dumbbell Bench Press',tip:'Greater range of motion than barbell. Feel the chest stretch at bottom, squeeze at top.'},
+  c03:{name:'Incline Barbell Press',tip:'30-45° incline targets upper chest. Keep lower back pressed against pad.'},
+  c04:{name:'Incline DB Press',tip:'Arc the dumbbells up from ear level — upper chest fires more on incline.'},
+  c05:{name:'Decline DB Press',tip:'Targets lower chest. Keep core tight to avoid over-arching lower back.'},
+  c06:{name:'Dumbbell Flyes',tip:'Slight elbow bend throughout. Open wide to stretch chest, squeeze to close.'},
+  c07:{name:'Incline DB Flyes',tip:'Incline stretches upper chest more effectively. Keep arc motion, elbows slightly bent.'},
+  c08:{name:'Cable Crossover',tip:'Stand centered, bring arms together in front. Hold peak contraction 1 sec.'},
+  c09:{name:'Push-Up',tip:'Hands shoulder-width, body straight. Exhale on push, inhale on lower.'},
+  c10:{name:'Wide Push-Up',tip:'Hands 1.5× shoulder-width, elbows flare out targeting outer chest fibers.'},
+  c11:{name:'Diamond Push-Up',tip:'Hands form diamond under chest. Excellent for inner chest and triceps.'},
+  c12:{name:'Dips (Chest)',tip:'Lean forward ~30°, elbows flare out to shift load onto lower chest.'},
+  b01:{name:'Barbell Row',tip:'Hinge to ~45°, flat back. Pull bar to belly button, squeeze back at top for 1 sec.'},
+  b02:{name:'Single-Arm DB Row',tip:'One hand on bench, pull elbow toward ceiling. Feel full lat contraction.'},
+  b03:{name:'Pull-Up',tip:'Shoulder-width grip, start from dead hang. Pull chin over bar, slow descent.'},
+  b04:{name:'Wide-Grip Pull-Up',tip:'Wider grip emphasizes lats. Slightly smaller range, keep core tight.'},
+  b05:{name:'Lat Pulldown',tip:'Pull bar to upper chest, squeeze at bottom. Wide=lats, narrow=teres major.'},
+  b06:{name:'Seated Cable Row',tip:'Sit tall, pull to belly, squeeze rhomboids and mid-traps at peak.'},
+  b07:{name:'T-Bar Row',tip:'Hinge 45°, pull weight to abdomen. Classic mass-builder for thick back.'},
+  b08:{name:'Inverted Row',tip:'Under a sturdy table, pull chest up to surface. Works back and biceps.'},
+  b09:{name:'Superman',tip:'Prone, lift arms and legs simultaneously. Hold 2 sec at top for lower back.'},
+  b10:{name:'Straight-Arm Pulldown',tip:'Arms straight, press rope from overhead to hips. Isolates lats directly.'},
+  s01:{name:'Barbell OHP (Standing)',tip:'Grip shoulder-width, press overhead to full extension. Brace core throughout.'},
+  s02:{name:'DB Seated Press',tip:'Press from ear level to overhead — dumbbells don\'t touch at top.'},
+  s03:{name:'DB Lateral Raise',tip:'Slight forward lean, lead with elbows, raise to shoulder height. Thumbs slightly down.'},
+  s04:{name:'DB Front Raise',tip:'Raise to shoulder height, alternate or together. No swinging.'},
+  s05:{name:'Bent-Over DB Raise',tip:'Torso parallel to floor, raise to sides — targets rear delts.'},
+  s06:{name:'Arnold Press',tip:'Start palms in, rotate to palms out as you press. Full anterior/lateral delt activation.'},
+  s07:{name:'Upright Row',tip:'Narrow grip, pull to chin level, elbows higher than wrists.'},
+  s08:{name:'Cable Lateral Raise',tip:'Continuous cable tension more effective through full range than dumbbells.'},
+  s09:{name:'Pike Push-Up',tip:'Inverted V position, lower head toward floor. Targets front and mid delts.'},
+  s10:{name:'Shoulder Circles',tip:'Arms out, large forward/backward circles. Activates rotator cuff. Good warm-up.'},
+  bi01:{name:'Barbell Curl',tip:'Shoulder-width grip, elbows fixed at sides. Full curl to shoulder, hold at top.'},
+  bi02:{name:'Alt. DB Curl',tip:'Alternate arms, supinate wrist at top for peak bicep contraction.'},
+  bi03:{name:'Hammer Curl',tip:'Neutral grip targets brachialis and brachioradialis for arm thickness.'},
+  bi04:{name:'Concentration Curl',tip:'Elbow braced on inner thigh, isolates bicep peak. Classic shaping move.'},
+  bi05:{name:'Cable Curl',tip:'Constant cable tension. Can curl standing or bent-over.'},
+  bi06:{name:'Preacher Curl',tip:'Elbow on pad eliminates cheating. Don\'t hyperextend at bottom.'},
+  bi07:{name:'Chin-Up',tip:'Underhand grip — biceps contribute more. Depress scapula before pulling.'},
+  bi08:{name:'Incline DB Curl',tip:'Lying on incline, arms hang down for greater bicep long-head stretch.'},
+  tr01:{name:'Skull Crusher',tip:'Bar from overhead, lower to forehead by bending elbows. Targets long head.'},
+  tr02:{name:'Cable Pushdown',tip:'Elbows pinned at sides, press rope down to thighs. Squeeze at bottom.'},
+  tr03:{name:'DB Overhead Extension',tip:'Both hands on one dumbbell overhead, lower behind head for long head.'},
+  tr04:{name:'DB Kickback',tip:'Upper arm parallel to floor, extend forearm back. Squeeze lateral head at top.'},
+  tr05:{name:'Tricep Dips',tip:'Body upright (no lean), elbows track back. Best bodyweight tricep exercise.'},
+  tr06:{name:'Diamond Push-Up',tip:'Diamond hand position, elbows stay close to body throughout.'},
+  tr07:{name:'Close-Grip Bench',tip:'Slightly narrower than shoulder-width, elbows tucked, triceps are primary mover.'},
+  tr08:{name:'Single-Arm Pushdown',tip:'One arm at a time for better focus. Use lighter weight, full range of motion.'},
+  l01:{name:'Barbell Squat',tip:'Bar on traps, squat to parallel or below. Neutral spine, core braced throughout.'},
+  l02:{name:'Front Squat',tip:'Bar on front delts, elbows high. More upright torso, stronger quad emphasis.'},
+  l03:{name:'Leg Press',tip:'Feet upper third of platform, don\'t lock knees. Back pressed to pad throughout.'},
+  l04:{name:'Hack Squat',tip:'Machine keeps spine upright, great quad isolation. Good squat pattern teacher.'},
+  l05:{name:'Dumbbell Squat',tip:'Goblet squat style: DB at chest, squat deep. Great for home training.'},
+  l06:{name:'Lunge',tip:'Big step forward, front knee 90°, back knee near floor. Stay upright.'},
+  l07:{name:'DB Lunge',tip:'Hold dumbbells at sides, walking or stationary lunges for added load.'},
+  l08:{name:'Bulgarian Split Squat',tip:'Rear foot on bench, single-leg squat. Best single-leg strength movement.'},
+  l09:{name:'Romanian Deadlift',tip:'Slight knee bend fixed, hinge at hips, bar slides down legs. Feel hamstring stretch.'},
+  l10:{name:'Leg Curl',tip:'Prone curl, bring heels to glutes. Hold 1 sec peak contraction.'},
+  l11:{name:'Leg Extension',tip:'Seated, extend legs straight. Isolates quads — pause at top.'},
+  l12:{name:'Calf Raise',tip:'Rise onto toes, hold 1 sec, slow lower. Single-leg version is more effective.'},
+  l13:{name:'Seated Calf Raise',tip:'Targets soleus. Complements standing calf raise (targets gastrocnemius).'},
+  g01:{name:'Hip Thrust (Barbell)',tip:'Shoulders on bench, bar on hip crease. Drive hips up fully, hard squeeze at top.'},
+  g02:{name:'Glute Bridge',tip:'Lie on back, feet flat, push hips up. Squeeze glutes hard at top.'},
+  g03:{name:'DB Hip Thrust',tip:'Same as barbell but with dumbbell on hips. Great for home training.'},
+  g04:{name:'Clamshell',tip:'Side lying, feet together, open top knee up like a clamshell. Isolates glute med.'},
+  g05:{name:'Hip Abduction Machine',tip:'Seated, push knees apart. Targets glute medius, great for shape.'},
+  g06:{name:'Straight-Leg Deadlift',tip:'Legs straight, hinge from lower back. Strong hamstring/glute coordination move.'},
+  g07:{name:'Donkey Kick',tip:'Quadruped, kick one leg back and up. Squeeze glute hard at top.'},
+  co01:{name:'Plank',tip:'Forearms down, body straight head to toe. Pull belly in, don\'t let hips sag.'},
+  co02:{name:'Crunch',tip:'Hands at temples, curl upper back up keeping lower back down. No neck pulling.'},
+  co03:{name:'Sit-Up',tip:'Full range motion — activates hip flexors as well as abs.'},
+  co04:{name:'Russian Twist',tip:'Lean back 45°, feet off floor, rotate torso side to side. Targets obliques.'},
+  co05:{name:'Side Plank',tip:'One arm, body in lateral line. Feel side abs engage, don\'t let hips drop.'},
+  co06:{name:'V-Up',tip:'Lift upper body and legs simultaneously, touch hands to feet. Full abs.'},
+  co07:{name:'Hanging Leg Raise',tip:'Hang from bar, raise legs to horizontal or above. Top move for lower abs.'},
+  co08:{name:'Mountain Climber',tip:'Push-up position, alternate knees to chest. Keep hips level throughout.'},
+  co09:{name:'Ab Wheel',tip:'Kneeling, roll out until nearly flat, core tight to pull back. Advanced move.'},
+  co10:{name:'Cable Crunch',tip:'Kneel at high cable, crunch rope down. Constant tension on abs.'},
+  co11:{name:'Bicycle Crunch',tip:'Alternate elbow to opposite knee with full trunk rotation. Great for obliques.'},
+  co12:{name:'Plank Leg Raise',tip:'In plank, alternate raising each leg. Adds glute and spinal stability challenge.'},
+  ca01:{name:'Treadmill',tip:'Steady state at 65-75% max HR, or do HIIT sprints for cardio improvement.'},
+  ca02:{name:'Jump Rope',tip:'Wrist rotation, elbows near body, light landing. Progress to single-leg or double-unders.'},
+  ca03:{name:'Jumping Jacks',tip:'Feet together jump out while raising arms overhead. Effective full-body warm-up.'},
+  ca04:{name:'Burpee',tip:'Squat→kick out→push-up→jump back→jump up. Total body, high calorie burn.'},
+  ca05:{name:'High Knees',tip:'Run in place lifting knees to waist height. Arms pump actively, stay upright.'},
+  ca06:{name:'Stationary Bike',tip:'80-90 RPM cadence, adjust resistance. Low-impact cardio option.'},
+  ca07:{name:'Rowing Machine',tip:'Legs→lean back→arms pull. Sequence matters. Full-body cardio plus strength.'},
+  ca08:{name:'Stair Climber',tip:'Slight forward lean, full steps. Burns calories while strengthening lower body.'},
+  ca09:{name:'HIIT Intervals',tip:'30 sec all-out (burpees/high knees/jump rope), 30 sec rest × 4. Boosts metabolism.'},
+  ca10:{name:'Lateral Bound',tip:'Feet together, leap sideways one big step, immediately bound back. Trains lateral movement.'},
+};
+const TRANSLATIONS={
+  zh:{
+    tab_today:'今天',tab_plan:'计划',tab_progress:'记录',tab_profile:'我的',
+    plan_title:'训练计划',plan_sub:'点击任意一天 · 精确选择每个动作',
+    progress_title:'训练记录',
+    stat_total:'总训练次数',stat_streak:'当前连续天',stat_week:'本周完成',stat_exercises:'总动作次数',
+    heatmap_title:'活跃热力图',history_title:'训练历史',
+    profile_settings:'设置',profile_edit:'修改昵称',profile_theme:'主题颜色',profile_reset:'重置数据',
+    section_exercises:'训练动作',start_btn:'开始训练 →',streak_suffix:'天连续',
+    ring_complete:'完成',rest_toggle_label:'😴 设为休息日',editor_save:'保存 ✓',
+    timer_title:'组间休息',timer_skip:'跳过',
+    equip_all:'全部',
+    rest_workout_name:'休息日 😴',rest_workout_duration:'休息',rest_full:'充分恢复',
+    rest_state_title:'今日休息日',rest_state_sub:'充分休息是训练的一部分 💪',
+    done_all_title:'今日训练完成！',done_all_sub:'太棒了！明天继续加油 💪',
+    morning:'早上好 ☀️',afternoon:'下午好 🌤️',evening:'晚上好 🌙',
+    day_names:['周一','周二','周三','周四','周五','周六','周日'],
+    day_chips:['一','二','三','四','五','六','日'],
+    history_days:['周日','周一','周二','周三','周四','周五','周六'],
+    edit_title_suffix:'的训练',
+    timer_suffix:'秒后开始下一组',
+    set_label:'第',set_suffix:'组',
+    modal_done:'完成此动作 ✓',modal_done_already:'已完成 ✓',
+    editor_selected:'已选',editor_selected_unit:'个动作',editor_est:'预计约',editor_est_suffix:'分钟',
+    rest_empty_title:'已设为休息日',rest_empty_sub:'关闭「休息日」开关来选择训练动作',
+    no_exercises:'该筛选条件下没有动作',
+    history_badge:'✓ 完成',history_total:'共完成',history_total_suffix:'次训练',
+    xp_label:'当前等级经验',xp_of:'/ 100 XP',
+    level_titles:['新手','稳定练习者','进阶训练者','精英运动员','传说战士'],
+    edit_name_prompt:'请输入你的昵称:',reset_confirm:'确认重置所有训练数据？',
+    tip_prefix:'💡 ',
+  },
+  en:{
+    tab_today:'Today',tab_plan:'Plan',tab_progress:'Log',tab_profile:'Me',
+    plan_title:'Workout Plan',plan_sub:'Tap any day to customize exercises',
+    progress_title:'Training Log',
+    stat_total:'Total Workouts',stat_streak:'Current Streak',stat_week:'This Week',stat_exercises:'Exercises Done',
+    heatmap_title:'Activity Heatmap',history_title:'Workout History',
+    profile_settings:'Settings',profile_edit:'Edit Name',profile_theme:'Theme Color',profile_reset:'Reset Data',
+    section_exercises:'Exercises',start_btn:'Start Workout →',streak_suffix:' day streak',
+    ring_complete:'Done',rest_toggle_label:'😴 Rest Day',editor_save:'Save ✓',
+    timer_title:'Rest Timer',timer_skip:'Skip',
+    equip_all:'All',
+    rest_workout_name:'Rest Day 😴',rest_workout_duration:'Rest',rest_full:'Full Recovery',
+    rest_state_title:'Rest Day',rest_state_sub:'Recovery is part of the process 💪',
+    done_all_title:"Today's workout done!",done_all_sub:'Amazing! Keep it up tomorrow 💪',
+    morning:'Good Morning ☀️',afternoon:'Good Afternoon 🌤️',evening:'Good Evening 🌙',
+    day_names:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    day_chips:['M','T','W','T','F','S','S'],
+    history_days:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+    edit_title_suffix:"'s Workout",
+    timer_suffix:'s until next set',
+    set_label:'Set ',set_suffix:'',
+    modal_done:'Complete ✓',modal_done_already:'Done ✓',
+    editor_selected:'Selected',editor_selected_unit:'exercises',editor_est:'Est.',editor_est_suffix:'min',
+    rest_empty_title:'Rest Day Set',rest_empty_sub:'Turn off Rest Day to select exercises',
+    no_exercises:'No exercises match this filter',
+    history_badge:'✓ Done',history_total:'Total',history_total_suffix:'workouts',
+    xp_label:'Current Level XP',xp_of:'/ 100 XP',
+    level_titles:['Beginner','Regular','Intermediate','Elite Athlete','Legend'],
+    edit_name_prompt:'Enter your nickname:',reset_confirm:'Reset all training data?',
+    tip_prefix:'💡 ',
+  }
+};
+let currentLang='zh';
+function t(key){return(TRANSLATIONS[currentLang]||TRANSLATIONS.zh)[key]??TRANSLATIONS.zh[key]??key;}
+function exName(ex){return currentLang==='en'&&DB_EN[ex.id]?DB_EN[ex.id].name:ex.name;}
+function exTip(ex){return currentLang==='en'&&DB_EN[ex.id]?DB_EN[ex.id].tip:ex.tip;}
+function equipLabel(key){return currentLang==='en'?EQUIP_EN[key]||(EQUIP[key]?.label||key):EQUIP[key]?.label||key;}
+function muscleLabel(mg){return currentLang==='en'?MUSCLE_EN[mg.id]||mg.label:mg.label;}
+function applyI18n(){
+  const ids={
+    't-tab-today':'tab_today','t-tab-plan':'tab_plan','t-tab-progress':'tab_progress','t-tab-profile':'tab_profile',
+    't-plan-title':'plan_title','t-plan-sub':'plan_sub','t-progress-title':'progress_title',
+    't-stat-total':'stat_total','t-stat-streak':'stat_streak','t-stat-week':'stat_week','t-stat-exercises':'stat_exercises',
+    't-heatmap-title':'heatmap_title','t-history-title':'history_title',
+    't-profile-settings':'profile_settings','t-profile-edit':'profile_edit','t-profile-theme':'profile_theme','t-profile-reset':'profile_reset',
+    't-section-exercises':'section_exercises','t-start-btn':'start_btn','t-streak-suffix':'streak_suffix',
+    't-ring-complete':'ring_complete','t-rest-toggle-label':'rest_toggle_label','t-editor-save':'editor_save',
+    't-timer-title':'timer_title','t-timer-skip':'timer_skip',
+  };
+  Object.entries(ids).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.textContent=t(key);});
+  document.getElementById('la-zh').className=currentLang==='zh'?'la':'';
+  document.getElementById('la-en').className=currentLang==='en'?'la':'';
+}
+function toggleLang(){
+  currentLang=currentLang==='zh'?'en':'zh';
+  state.lang=currentLang;
+  saveState();
+  applyI18n();
+  renderToday();
+  renderSchedulePage();
+  const activePage=document.querySelector('.page.active')?.id;
+  if(activePage==='page-progress')renderProgress();
+  if(activePage==='page-profile')renderProfile();
+}
+
+// Default schedule (exercise IDs per day)
+const DEFAULT_DAY_EXERCISES = [
+  ['c01','c09','s01','s03'],           // Mon: 胸+肩
+  ['ca04','ca05','ca03','co08','ca09'],// Tue: 有氧HIIT
+  ['l01','l06','g01','l09','l12'],     // Wed: 腿+臀
+  ['co01','co02','co04','co05','co06'],// Thu: 核心
+  ['b01','b03','bi01','b05'],          // Fri: 背+二头
+  ['ca01','ca02','ca06'],              // Sat: 有氧耐力
+  [],                                   // Sun: 休息
+];
+const DEFAULT_REST_DAYS = { 6: true };
+
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+let state = {
+  customExercises:{},  // { dayIdx: [exId,...] }
+  restDays:{},         // { dayIdx: true }
+  completedExercises:{},
+  completedWorkouts:[],
+  totalExercises:0,
+  name:'健身达人',
+  theme:0,
+  lang:'zh',
+};
+const THEMES=[
+  {accent:'#6c63ff',accent2:'#ff6584',accent3:'#43e97b'},
+  {accent:'#f7971e',accent2:'#ff6b6b',accent3:'#4ecdc4'},
+  {accent:'#667eea',accent2:'#f093fb',accent3:'#4facfe'},
+];
+function saveState(){localStorage.setItem('fitness_v4',JSON.stringify(state));}
+function loadState(){
+  const s=localStorage.getItem('fitness_v4');
+  if(s)state={...state,...JSON.parse(s)};
+  if(state.lang)currentLang=state.lang;
+}
+
+function todayKey(){return new Date().toISOString().slice(0,10);}
+function dateKey(d){return d.toISOString().slice(0,10);}
+function jsDayToPlanDay(jsDay){return jsDay===0?6:jsDay-1;}
+
+// Get exercise object by ID
+function getEx(id){return DB.find(e=>e.id===id);}
+
+// Get workout for a given plan day
+function getWorkoutForDay(planDayIdx){
+  if((state.restDays[planDayIdx])||(planDayIdx===6&&!state.customExercises[planDayIdx]&&!Object.keys(state.restDays).includes('6'+'') && DEFAULT_REST_DAYS[planDayIdx])){
+    return{isRest:true,exercises:[],name:t('rest_workout_name'),icon:'😴',duration:t('rest_workout_duration'),calories:'0 kcal'};
+  }
+  const ids = state.customExercises[planDayIdx] || DEFAULT_DAY_EXERCISES[planDayIdx] || [];
+  if(ids.length===0) return{isRest:true,exercises:[],name:t('rest_workout_name'),icon:'😴',duration:t('rest_workout_duration'),calories:'0 kcal'};
+  const exercises = ids.map(id=>getEx(id)).filter(Boolean);
+  const muscles=[...new Set(exercises.map(e=>{const mg=MUSCLES.find(m=>m.id===e.muscle);return mg?muscleLabel(mg):e.muscle;}))];
+  const duration=Math.round(exercises.length*5+8);
+  const calories=Math.round(exercises.length*42+50);
+  return{
+    isRest:false,
+    exercises,
+    name:muscles.slice(0,2).join(' + '),
+    icon:MUSCLES.find(m=>m.id===exercises[0]?.muscle)?.icon||'💪',
+    duration:currentLang==='en'?duration+' min':duration+'分钟',
+    calories:calories+' kcal',
+  };
+}
+
+// ══════════════════════════════════════
+//  PAGE SWITCH
+// ══════════════════════════════════════
+function switchPage(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='progress')renderProgress();
+  if(name==='plan')renderSchedulePage();
+  if(name==='profile')renderProfile();
+}
+
+// ══════════════════════════════════════
+//  TODAY PAGE
+// ══════════════════════════════════════
+function renderToday(){
+  const today=new Date();
+  const jsDay=today.getDay();
+  const planDay=jsDayToPlanDay(jsDay);
+  const workout=getWorkoutForDay(planDay);
+
+  const h=today.getHours();
+  document.getElementById('greeting').textContent=h<12?t('morning'):h<17?t('afternoon'):t('evening');
+  document.getElementById('today-date').textContent=today.toLocaleDateString(currentLang==='en'?'en-US':'zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  document.getElementById('streak-count').textContent=calcStreak();
+
+  const monday=new Date(today);
+  monday.setDate(today.getDate()-(jsDay===0?6:jsDay-1));
+  const strip=document.getElementById('day-strip');
+  strip.innerHTML='';
+  t('day_chips').forEach((label,i)=>{
+    const day=new Date(monday);day.setDate(monday.getDate()+i);
+    const dk=dateKey(day);
+    const chip=document.createElement('div');
+    chip.className='day-chip'+(dk===todayKey()?' active':'')+(state.completedWorkouts.includes(dk)?' done':'');
+    chip.innerHTML=`<div class="chip-day">${label}</div><div class="chip-num">${day.getDate()}</div><div class="chip-dot"></div>`;
+    strip.appendChild(chip);
+  });
+
+  document.getElementById('hero-day-label').textContent=t('day_names')[planDay];
+  document.getElementById('hero-workout-name').textContent=workout.name;
+  document.getElementById('hero-duration').textContent=workout.duration;
+  document.getElementById('hero-calories').textContent=workout.calories;
+  document.getElementById('hero-ex-count').textContent=workout.isRest?t('rest_full'):workout.exercises.length+(currentLang==='en'?' exercises':'个动作');
+
+  renderExList(workout);
+}
+
+function renderExList(workout){
+  const key=todayKey();
+  const done=state.completedExercises[key]||{};
+  const total=workout.exercises.length;
+  const doneCount=workout.exercises.filter(e=>done[e.id]).length;
+  const pct=total?Math.round(doneCount/total*100):(workout.isRest?100:0);
+  document.getElementById('progress-ring-fill').style.strokeDashoffset=326.7-(326.7*pct/100);
+  document.getElementById('ring-pct').textContent=pct+'%';
+
+  const list=document.getElementById('ex-list');
+  list.innerHTML='';
+
+  if(workout.isRest){
+    list.innerHTML=`<div class="today-complete"><div class="tc-emoji">😴</div><div class="tc-title">${t('rest_state_title')}</div><div class="tc-sub">${t('rest_state_sub')}</div></div>`;
+    return;
+  }
+  if(doneCount===total&&total>0){
+    const c=document.createElement('div');c.className='today-complete';
+    c.innerHTML=`<div class="tc-emoji">🎉</div><div class="tc-title">${t('done_all_title')}</div><div class="tc-sub">${t('done_all_sub')}</div>`;
+    list.appendChild(c);
+  }
+  workout.exercises.forEach(ex=>{
+    const isDone=!!done[ex.id];
+    const eq=EQUIP[ex.equip]||EQUIP.bodyweight;
+    const card=document.createElement('div');
+    card.className='ex-card'+(isDone?' done-ex':'');
+    card.onclick=()=>openExercise(ex);
+    card.innerHTML=`
+      <div class="ex-anim anim-${ex.anim}">${ex.emoji}</div>
+      <div class="ex-info">
+        <div class="ex-name">${exName(ex)}</div>
+        <div class="ex-detail">${ex.sets}${currentLang==='en'?' sets × ':' 组 × '}${ex.reps}</div>
+        <span class="ex-equip-tag" style="background:${eq.bg};color:${eq.color}">${equipLabel(ex.equip)}</span>
+      </div>
+      <div class="ex-check">${isDone?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>`;
+    list.appendChild(card);
+  });
+}
+
+// ══════════════════════════════════════
+//  EXERCISE MODAL
+// ══════════════════════════════════════
+let currentExercise=null,setsDone=[],timerInterval=null,timerSecs=60;
+function openExercise(ex){
+  currentExercise=ex;
+  setsDone=new Array(ex.sets).fill(false);
+  const eq=EQUIP[ex.equip]||EQUIP.bodyweight;
+  document.getElementById('modal-title').textContent=exName(ex);
+  document.getElementById('modal-meta').innerHTML=`${ex.sets}${currentLang==='en'?' sets × ':' 组 × '}${ex.reps} &nbsp;<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${eq.bg};color:${eq.color};font-weight:700">${equipLabel(ex.equip)}</span>`;
+  document.getElementById('modal-tips').textContent=t('tip_prefix')+exTip(ex);
+  document.getElementById('modal-anim').innerHTML=`<div style="text-align:center"><div class="anim-${ex.anim}" style="display:inline-block;font-size:80px;line-height:1">${ex.emoji}</div><div style="margin-top:12px;font-size:13px;color:var(--text2)">${exName(ex)}</div></div>`;
+  const setsEl=document.getElementById('modal-sets');setsEl.innerHTML='';
+  for(let i=0;i<ex.sets;i++){const r=document.createElement('div');r.className='set-row';r.innerHTML=`<div class="set-num">${i+1}</div><div class="set-info">${t('set_label')}${i+1}${t('set_suffix')} · ${ex.reps}</div><div class="set-check" id="set-${i}" onclick="toggleSet(${i})"></div>`;setsEl.appendChild(r);}
+  const alreadyDone=!!(state.completedExercises[todayKey()]||{})[ex.id];
+  if(alreadyDone){setsDone.fill(true);updateSetDisplay();document.getElementById('modal-done-btn').textContent=t('modal_done_already');document.getElementById('modal-done-btn').style.background='var(--bg3)';}
+  else{document.getElementById('modal-done-btn').textContent=t('modal_done');document.getElementById('modal-done-btn').style.background='';}
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function updateSetDisplay(){setsDone.forEach((d,i)=>{const el=document.getElementById('set-'+i);if(el){el.className='set-check'+(d?' checked':'');el.innerHTML=d?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':'';}});}
+function toggleSet(i){const was=!setsDone[i];setsDone[i]=!setsDone[i];updateSetDisplay();if(was&&setsDone.filter(Boolean).length<setsDone.length)startRestTimer();}
+function closeModalOutside(e){if(e.target===document.getElementById('modal-overlay'))document.getElementById('modal-overlay').classList.remove('open');}
+function completeExercise(){
+  if(!currentExercise)return;
+  const key=todayKey();
+  if(!state.completedExercises[key])state.completedExercises[key]={};
+  state.completedExercises[key][currentExercise.id]=true;
+  state.totalExercises=(state.totalExercises||0)+1;
+  const w=getWorkoutForDay(jsDayToPlanDay(new Date().getDay()));
+  if(w.exercises.every(e=>(state.completedExercises[key]||{})[e.id])&&!state.completedWorkouts.includes(key)){
+    state.completedWorkouts.push(key);saveState();
+    document.getElementById('modal-overlay').classList.remove('open');
+    renderToday();setTimeout(showConfetti,300);return;
+  }
+  saveState();document.getElementById('modal-overlay').classList.remove('open');renderToday();
+}
+function startRestTimer(secs=60){
+  if(timerInterval)clearInterval(timerInterval);
+  timerSecs=secs;
+  const total=secs;
+  document.getElementById('timer-label').textContent=secs;
+  document.getElementById('timer-sub').textContent=secs+t('timer_suffix');
+  document.getElementById('timer-bar').classList.add('show');
+  timerInterval=setInterval(()=>{
+    timerSecs--;
+    document.getElementById('timer-label').textContent=timerSecs;
+    document.getElementById('timer-sub').textContent=timerSecs+t('timer_suffix');
+    document.getElementById('timer-fill').style.strokeDashoffset=113-113*(timerSecs/total);
+    if(timerSecs<=0){clearInterval(timerInterval);document.getElementById('timer-bar').classList.remove('show');if(navigator.vibrate)navigator.vibrate([200,100,200]);}
+  },1000);
+}
+function skipTimer(){if(timerInterval)clearInterval(timerInterval);document.getElementById('timer-bar').classList.remove('show');}
+function startWorkout(){const w=getWorkoutForDay(jsDayToPlanDay(new Date().getDay()));if(w.exercises.length)openExercise(w.exercises[0]);}
+
+// ══════════════════════════════════════
+//  SCHEDULE PAGE
+// ══════════════════════════════════════
+function renderSchedulePage(){
+  const grid=document.getElementById('schedule-grid');
+  grid.innerHTML='';
+  const today=new Date(),jsDay=today.getDay();
+  const planToday=jsDayToPlanDay(jsDay);
+  const monday=new Date(today);monday.setDate(today.getDate()-(jsDay===0?6:jsDay-1));
+  for(let i=0;i<7;i++){
+    const day=new Date(monday);day.setDate(monday.getDate()+i);
+    const workout=getWorkoutForDay(i);
+    const isToday=i===planToday;
+    const card=document.createElement('div');
+    card.className='sched-card'+(isToday?' today-sched':'');
+    card.onclick=()=>openEditor(i);
+    let chipsHtml='';
+    if(workout.isRest){
+      chipsHtml=`<span class="sched-chip" style="background:rgba(255,255,255,.07);color:var(--text3)">😴 ${currentLang==='en'?'Rest Day':'休息日'}</span>`;
+    } else {
+      const muscleIds=[...new Set(workout.exercises.map(e=>e.muscle))];
+      chipsHtml=muscleIds.slice(0,4).map(mid=>{
+        const mg=MUSCLES.find(m=>m.id===mid);
+        return mg?`<span class="sched-chip" style="background:rgba(108,99,255,.15);color:var(--accent)">${mg.icon} ${muscleLabel(mg)}</span>`:'';
+      }).join('');
+    }
+    card.innerHTML=`
+      ${isToday?'<div class="today-dot"></div>':''}
+      <div class="sched-day-col">
+        <div class="sched-day-name">${t('day_names')[i]}</div>
+        <div class="sched-day-num">${day.getDate()}</div>
+      </div>
+      <div class="sched-divider"></div>
+      <div class="sched-info">
+        <div class="sched-title">${workout.icon} ${workout.name}</div>
+        <div class="sched-chips">${chipsHtml}${!workout.isRest?`<span class="sched-chip" style="background:rgba(67,233,123,.12);color:var(--accent3)">${workout.exercises.length}${currentLang==='en'?' ex':'个动作'}</span>`:''}</div>
+      </div>
+      <div class="sched-edit-arrow">✏️</div>`;
+    grid.appendChild(card);
+  }
+}
+
+// ══════════════════════════════════════
+//  EXERCISE EDITOR
+// ══════════════════════════════════════
+let editorDayIdx=null;
+let editorSelected=[];
+let editorActiveMuscle='chest';
+let editorActiveEquip='all';
+let editorIsRest=false;
+
+function openEditor(dayIdx){
+  editorDayIdx=dayIdx;
+  editorIsRest=!!(state.restDays[dayIdx]||(dayIdx===6&&!state.customExercises[dayIdx]&&DEFAULT_REST_DAYS[dayIdx]));
+  editorSelected=[...(state.customExercises[dayIdx]||DEFAULT_DAY_EXERCISES[dayIdx]||[])];
+  editorActiveMuscle='chest';
+  editorActiveEquip='all';
+  document.getElementById('editor-title').textContent=t('day_names')[dayIdx]+t('edit_title_suffix');
+  renderRestToggle();
+  renderMuscleTabs();
+  renderEquipFilter();
+  renderEditorExList();
+  renderEditorBottom();
+  document.getElementById('editor-overlay').classList.add('open');
+}
+function closeEditor(){
+  document.getElementById('editor-overlay').classList.remove('open');
+}
+function saveEditor(){
+  if(editorIsRest){
+    state.restDays[editorDayIdx]=true;
+    delete state.customExercises[editorDayIdx];
+  } else {
+    delete state.restDays[editorDayIdx];
+    state.customExercises[editorDayIdx]=[...editorSelected];
+  }
+  saveState();
+  closeEditor();
+  renderSchedulePage();
+  if(editorDayIdx===jsDayToPlanDay(new Date().getDay()))renderToday();
+}
+
+function toggleRestDay(){
+  editorIsRest=!editorIsRest;
+  renderRestToggle();
+  renderEditorExList();
+}
+function renderRestToggle(){
+  const tog=document.getElementById('rest-toggle');
+  tog.className='toggle-switch'+(editorIsRest?' on':'');
+}
+
+function renderMuscleTabs(){
+  const tabs=document.getElementById('muscle-tabs');
+  tabs.innerHTML='';
+  MUSCLES.forEach(mg=>{
+    const hasSelected=editorSelected.some(id=>{const ex=getEx(id);return ex&&ex.muscle===mg.id;});
+    const btn=document.createElement('div');
+    btn.className='muscle-tab'+(editorActiveMuscle===mg.id?' active':'');
+    btn.innerHTML=`${mg.icon} ${muscleLabel(mg)}${hasSelected?` <span style="color:var(--accent3);font-size:10px">✓</span>`:''}`;
+    btn.onclick=()=>{editorActiveMuscle=mg.id;editorActiveEquip='all';renderMuscleTabs();renderEquipFilter();renderEditorExList();};
+    tabs.appendChild(btn);
+  });
+}
+
+function renderEquipFilter(){
+  const filter=document.getElementById('equip-filter');
+  filter.innerHTML='';
+  const equipInMuscle=['all',...new Set(DB.filter(e=>e.muscle===editorActiveMuscle).map(e=>e.equip))];
+  equipInMuscle.forEach(key=>{
+    const eq=key==='all'?{label:t('equip_all'),color:'var(--text)',bg:'var(--bg3)'}:EQUIP[key];
+    if(!eq)return;
+    const btn=document.createElement('div');
+    btn.className='equip-chip'+(editorActiveEquip===key?' active':'');
+    btn.style.color=editorActiveEquip===key?'#000':eq.color;
+    btn.style.background=editorActiveEquip===key?eq.color:(key==='all'?'var(--bg2)':'transparent');
+    btn.style.borderColor=editorActiveEquip===key?'transparent':eq.color;
+    btn.textContent=key==='all'?t('equip_all'):equipLabel(key);
+    btn.onclick=()=>{editorActiveEquip=key;renderEquipFilter();renderEditorExList();};
+    filter.appendChild(btn);
+  });
+}
+
+function renderEditorExList(){
+  const list=document.getElementById('editor-ex-list');
+  if(editorIsRest){list.innerHTML=`<div class="empty-state"><div class="empty-icon">😴</div><div class="empty-text">${t('rest_empty_title')}<br>${t('rest_empty_sub')}</div></div>`;return;}
+  const filtered=DB.filter(e=>e.muscle===editorActiveMuscle&&(editorActiveEquip==='all'||e.equip===editorActiveEquip));
+  if(!filtered.length){list.innerHTML=`<div class="empty-state"><div class="empty-text">${t('no_exercises')}</div></div>`;return;}
+  list.innerHTML='';
+  filtered.forEach(ex=>{
+    const isSelected=editorSelected.includes(ex.id);
+    const eq=EQUIP[ex.equip]||EQUIP.bodyweight;
+    const item=document.createElement('div');
+    item.className='editor-ex-item'+(isSelected?' selected':'');
+    item.onclick=()=>toggleEditorEx(ex.id);
+    item.innerHTML=`
+      <div class="editor-ex-emoji anim-${ex.anim}">${ex.emoji}</div>
+      <div class="editor-ex-info">
+        <div class="editor-ex-name">${exName(ex)}</div>
+        <div class="editor-ex-meta">
+          <span class="editor-equip-badge" style="background:${eq.bg};color:${eq.color}">${equipLabel(ex.equip)}</span>
+          <span class="editor-ex-reps">${ex.sets}${currentLang==='en'?' sets × ':' 组 × '}${ex.reps}</span>
+        </div>
+      </div>
+      <div class="editor-checkbox">${isSelected?'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}</div>`;
+    list.appendChild(item);
+  });
+}
+
+function toggleEditorEx(id){
+  if(editorSelected.includes(id))editorSelected=editorSelected.filter(i=>i!==id);
+  else editorSelected.push(id);
+  renderMuscleTabs();
+  renderEditorExList();
+  renderEditorBottom();
+}
+
+function renderEditorBottom(){
+  const count=editorSelected.length;
+  document.getElementById('editor-selected-count').innerHTML=`${t('editor_selected')} <strong>${count}</strong> ${t('editor_selected_unit')}${count>0?` · ${t('editor_est')} ${Math.round(count*5+8)} ${t('editor_est_suffix')}`:''}`;
+  const pills=document.getElementById('editor-selected-pills');
+  pills.innerHTML=editorSelected.slice(0,8).map(id=>{
+    const ex=getEx(id);
+    return ex?`<div class="editor-pill">${ex.emoji} ${exName(ex)}</div>`:'';
+  }).join('')+(editorSelected.length>8?`<div class="editor-pill">+${editorSelected.length-8}</div>`:'');
+}
+
+// ══════════════════════════════════════
+//  PROGRESS
+// ══════════════════════════════════════
+function calcStreak(){
+  let streak=0;const today=new Date();
+  for(let i=0;i<365;i++){const d=new Date(today);d.setDate(today.getDate()-i);if(state.completedWorkouts.includes(dateKey(d)))streak++;else if(i>0)break;}
+  return streak;
+}
+function renderProgress(){
+  const streak=calcStreak(),total=state.completedWorkouts.length;
+  const today=new Date(),jsDay=today.getDay();
+  const ws=new Date(today);ws.setDate(today.getDate()-(jsDay===0?6:jsDay-1));
+  let wk=0;for(let i=0;i<7;i++){const d=new Date(ws);d.setDate(ws.getDate()+i);if(state.completedWorkouts.includes(dateKey(d)))wk++;}
+  document.getElementById('stat-total').textContent=total;
+  document.getElementById('stat-streak').textContent=streak;
+  document.getElementById('stat-week').textContent=wk;
+  document.getElementById('stat-exercises').textContent=state.totalExercises||0;
+  document.getElementById('progress-sub').textContent=currentLang==='en'?`${t('history_total')} ${total} ${t('history_total_suffix')}`:`共完成 ${total} 次训练`;
+  document.getElementById('heatmap-labels').innerHTML=t('day_chips').map(d=>`<div class="heat-label">${d}</div>`).join('');
+  const hm=document.getElementById('heatmap');hm.innerHTML='';
+  const monday=new Date(today);monday.setDate(today.getDate()-(jsDay===0?6:jsDay-1)-21);
+  for(let i=0;i<28;i++){const d=new Date(monday);d.setDate(monday.getDate()+i);const dk=dateKey(d);const cell=document.createElement('div');cell.className='heat-cell'+(state.completedWorkouts.includes(dk)?' l3':'')+(dk===todayKey()?' today-cell':'');hm.appendChild(cell);}
+  const histList=document.getElementById('history-list');
+  if(!state.completedWorkouts.length){histList.innerHTML=`<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">${currentLang==='en'?'No workouts yet<br>Complete today\'s workout to start!':'还没有训练记录<br>完成今天的训练开始积累吧！'}</div></div>`;return;}
+  histList.innerHTML=[...state.completedWorkouts].sort((a,b)=>b.localeCompare(a)).slice(0,20).map(dk=>{
+    const d=new Date(dk);const w=getWorkoutForDay(jsDayToPlanDay(d.getDay()));
+    return`<div class="history-item"><div class="history-dot"></div><div class="history-info"><div class="history-title">${w.icon} ${w.name}</div><div class="history-date">${d.toLocaleDateString(currentLang==='en'?'en-US':'zh-CN',{month:'long',day:'numeric'})} · ${t('history_days')[d.getDay()]}</div></div><div class="history-badge">${t('history_badge')}</div></div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+//  PROFILE
+// ══════════════════════════════════════
+function renderProfile(){
+  const total=state.completedWorkouts.length,level=Math.floor(total/5)+1,xp=(total%5)*20;
+  document.getElementById('profile-name').textContent=state.name||'健身达人';
+  const titles=t('level_titles');
+  document.getElementById('profile-level-text').textContent=titles[Math.min(Math.floor((level-1)/4),4)]+' · Lv.'+level;
+  document.getElementById('level-xp-text').textContent=xp+' '+t('xp_of');
+  document.getElementById('level-bar-fill').style.width=xp+'%';
+  document.getElementById('t-xp-label').textContent=t('xp_label');
+}
+function editName(){const n=prompt(t('edit_name_prompt'),state.name||'健身达人');if(n){state.name=n;saveState();renderProfile();}}
+function toggleTheme(){state.theme=((state.theme||0)+1)%THEMES.length;const t=THEMES[state.theme];document.documentElement.style.setProperty('--accent',t.accent);document.documentElement.style.setProperty('--accent2',t.accent2);document.documentElement.style.setProperty('--accent3',t.accent3);saveState();}
+function resetProgress(){if(confirm(t('reset_confirm'))){state.completedExercises={};state.completedWorkouts=[];state.totalExercises=0;saveState();renderToday();renderProfile();}}
+
+// ══════════════════════════════════════
+//  CONFETTI
+// ══════════════════════════════════════
+function showConfetti(){
+  const wrap=document.getElementById('confetti-wrap');wrap.innerHTML='';
+  const colors=['#6c63ff','#ff6584','#43e97b','#f7971e','#4facfe','#f093fb'];
+  for(let i=0;i<60;i++){const c=document.createElement('div');c.className='conf';c.style.left=Math.random()*100+'vw';c.style.top='-10px';c.style.background=colors[Math.floor(Math.random()*colors.length)];c.style.animationDelay=Math.random()+'s';c.style.animationDuration=(1.5+Math.random())+'s';wrap.appendChild(c);}
+  setTimeout(()=>wrap.innerHTML='',3000);
+}
+
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+loadState();
+applyI18n();
+renderToday();
+if(state.theme&&THEMES[state.theme]){const th=THEMES[state.theme];document.documentElement.style.setProperty('--accent',th.accent);document.documentElement.style.setProperty('--accent2',th.accent2);document.documentElement.style.setProperty('--accent3',th.accent3);}
+</script>
+</body>
+</html>
